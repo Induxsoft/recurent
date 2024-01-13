@@ -1,0 +1,157 @@
+#include "dkli.dkh"
+#!
+module "parse.csv"
+{
+	#include "functions.dkh"
+	#include "serialize.dkh"
+    #include "webcl.dkh"
+
+    @service_rr="https://rr.api.induxsoft.net/edf7c35d2e934da687ebc2ce5bdc5af5/planes/mensuales/"
+    @ftipo_importe="mensualidad,comision,anticipo,cuota_renovacion,desc_pronto_pago,boni_pronto_pago,meses,cargo_retraso,cuota_retraso,dias_pronto_pago,dias_pago_tardio"
+    
+    @fields="tipo,cliente,contratacion,inicio,id_contrato,"+@ftipo_importe+",renovable,autorenovable,objeto_contrato,divisa,txt_clave1,txt_clave2,txt_clave3,txt_clave4,txt_clave5,req_clave1,
+    req_clave2,req_clave3,req_clave4,req_clave5,clave1,clave2,clave3,clave4,clave5,email,email1,telefono,telefono1,status"
+
+
+	@mvbc="Microsoft.VisualBasic.Core.dll" 
+    ref @lib_mvbc= _import_library(@mvbc)
+    do _map_function(@lib_mvbc, "Microsoft.VisualBasic.FileIO.TextFieldParser", "ReadLine", "rline","void","$")
+    do _map_function(@lib_mvbc, "Microsoft.VisualBasic.FileIO.TextFieldParser", "ReadFields", "rfields","void","*")
+    do _map_function(@lib_mvbc, "Microsoft.VisualBasic.FileIO.TextFieldParser", "SetDelimiters", "setdel","*System.String[]","void")
+    do _map_function(@lib_mvbc, "Microsoft.VisualBasic.FileIO.TextFieldParser", "Close", "close","void","void")
+
+
+    do _map_function(-1, "System.Collections.Generic.List`1[System.String]", "Add", "add","System.String","void")
+    do _map_function(-1, "System.Collections.Generic.List`1[System.String]", "ToArray", "toarray","void","*")
+    do _map_function(-1, "System.Collections.Generic.List`1[System.String]", "Clear", "clear","void","void")
+
+    // file="C:\\Users\\Dev\\Documents\\importar-recurent.csv"
+
+    
+
+    @log=""
+
+    verifyValue::value
+    {
+        return trim(replace(ranychars(value,'$,/\n"\'[]-%+/g','*'),"*",""))
+    }
+    createObj::&fields
+    {
+        if isnull(fields){return}
+        if @count(fields)<1{return}
+
+        for i=0;i<@count(fields)
+        {
+            key=trim(list.str(fields,i))
+            if key!=""{@rfields<key>:i}
+        }
+    }
+    isanyFields::&fields,pos
+    {
+        if isnull(fields){return}
+        if @count(fields)<1{return}
+
+        ref lfields=list.create_from_fields(@rfields)
+        
+        ref newobj=record.create()
+        
+        do addLog("------------------------------Inicio de la fila "+str(pos)+"------------------")
+
+        for i=0;i<@count(lfields)
+        {
+            namefield=trim(list.str(lfields,i))
+            key=@@(@rfields,namefield)
+            value=list.str(fields,key)
+
+            if trim(str(value))!=""
+            {
+                if isanyword(namefield,@fields)
+                {
+                    if namefield=="inicio" || namefield=="contratacion"{value=date_str(str2dt(value),"yyyy-MM-dd")}
+                    else if isanyword(namefield,@ftipo_importe){value=verifyValue(value)}
+                    newobj<namefield>:value
+                }
+            }
+        }
+        do addLog("-------Campos del plan a enviar al servidor---------- ")
+        
+        do addLog(to.json(newobj))
+
+        do addLog("-------Respuesta del servidor--------------")
+        do addLog(invokeService(newobj))
+
+        do addLog("------------------------------Fin-----------------------------------------\n\n")
+
+        exception{do addLog("-------Ocurrió un error durante el proceso, error:"+last_error())}
+        
+    }
+
+    invokeService::&data
+    {
+        if isnull(data){return}
+
+        if list.create_from_fields(data)<1
+        {
+            do addLog("-----Sin datos para enviar al servidor----------")
+            return
+        }
+
+        new h{@"Content-Type":"application/json;charset=utf-8"}
+
+        return http.request(@service_rr,"POST",h,to.json(data))
+    }
+    
+    addLog::txt{@log=@log +"\n"+ txt}
+    getLog::{return @log}
+
+    ref @rfields=@null
+    @delete_file_tmp=@true
+
+    execute.parse_csv::csv
+    {
+        ref @rfields=record.create()
+        @log=""
+        
+         ref cvsparse=_new(@lib_mvbc,"Microsoft.VisualBasic.FileIO.TextFieldParser",csv)
+
+        ref l=_new("System.Collections.Generic.List`1[System.String]")
+
+        do _invoke(l,"add","#")
+        ref arr=_invoke(l,"toarray")
+
+        do _set(cvsparse,"CommentTokens*",arr)
+
+        do _invoke(l,"clear")
+        do _invoke(l,"add",",")
+         ref arr=_invoke(l,"toarray")
+
+        do _invoke(cvsparse,"setdel",arr)
+        do _set(cvsparse,"HasFieldsEnclosedInQuotes*",from.json("true"))
+
+        //omite los titulos
+        // do _invoke(cvsparse,"rline")
+
+        //eliminar el archivo temporal
+        if file.exists(csv) && @delete_file_tmp{do file.delete(csv)}
+        cont=0
+        
+        do addLog("----------------------Fecha: "+date_str(now(),"yyyy-MM-dd H:mm:ss")+"----------------------\n")
+        while not(_get(cvsparse,"EndOfData"))
+        {
+            ref fields=_invoke(cvsparse,"rfields")
+            if cont==0{do createObj(fields)}
+            else{do isanyFields(fields,cont)}
+        
+            cont=cont + 1
+        }
+
+        do _invoke(cvsparse,"close")
+    }
+   
+    // do print(getLog())
+    
+    exception
+    {
+    	do rise_error(99,last_error())
+    }
+}

@@ -1,0 +1,19 @@
+#include "dkli.dkh"
+#!
+module "error"
+{
+	#include "functions.dkh"
+	#include "serialize.dkh"
+
+	#$
+	div(class="container-fluid")
+	{
+		div(class="alert alert-danger")
+		{
+			$"#<@@(@crud_context,'$error/message')>"
+		}
+		// p{"#<to.json(@crud_context)>"}
+	}
+	
+	
+}

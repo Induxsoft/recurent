@@ -1,0 +1,620 @@
+#include "dkli.dkh"
+#!
+module "lst"
+{
+	#include "functions.dkh"
+	#include "serialize.dkh"
+	#include "uielements.dkl"
+	#include "dbr.dkh"
+	do @context.begin(@crud_context)
+	ref @http_context=@("&http")
+	#include "website.dkl"
+	include @path_list_common
+
+	cell_link_func::&params, &row, &cell
+	{
+		// if @@(cell,"cell_type")!="data" &&  @@(cell,"cell_type")!="unknow" { return }
+
+		if @@(cell,"cell_type")=="summary"
+		{
+			new attr
+			{
+				@"style":"color:black;text-align:right;font-weight: bold;"
+			}
+			cell<"attributes*">:attr
+		}
+
+		if @@(cell,"column")=="tipo_movimiento"
+		{
+			mov=""
+			for l=0;l<@count(@tiposmov)
+			{
+				ref itm=@item(@tiposmov,l)
+				if @@(itm,"#id")==@@(row,"#tipo_movimiento")
+				{
+					mov=@@(itm,"const")
+					break;
+				}
+			}
+			cell<"text">:mov
+		}
+
+	}
+	new def_formapago
+	{
+		@"datatable*":dbr.list(@("&database"),"SELECT rf.clave,CONCAT('[',rf.clave,'] ',rf.valor)valor FROM rr_formapago rf ",@null)
+        @"id":"formapago"
+        member "attributes"
+        {
+            @"class":"form-select form-select-sm"
+            @"name":"formapago"
+        }
+        @"value_field":"clave"
+        @"text_field":"valor"
+        @"selected":"01"//ifstr(@('$./plan/formapago')=="","01",@('$./plan/formapago'))
+	}
+	ref @tiposmov=dbr.list(@("&database"),"select * from rr_tipo_movimiento",@null)
+
+	@totalvencidos=@("#./totalvencidos")
+	@saldo_total=@("#./saldototal")
+	@sys_pk_plan=@("./plan/sys_pk")
+	@sys_recver_plan=@("./plan/sys_recver")
+	@status_plan=@("#./plan/status")
+	@nextmensualidad=@("#./totalnextmensualidad")
+	
+	new s{@"status":@("#./plan/status")}
+    status=dbr.str(@("&database"),"select const from status_plan where id=@status limit 1",s)
+    if status==""{status="Borrador"}
+
+    @vw=@("parameters/vw")
+
+	@meses=@("$./plan/meses")
+	@fultimovencimiento=@("./ultimo_vencimiento")
+	@mensualidad=@("#./plan/mensualidad")
+	@anticipo=@("#./plan/anticipo")
+	@monto=@("#./plan/monto")
+	@couta_renovacion=@("#./plan/cuota_renovacion")
+
+	@isrenovable=@("#./plan/renovable")
+
+	@fecha_renovacion=@("$./plan/fecha_renovacion")
+
+	@format="$ #,#.00"
+	@monto_formated=format(@mensualidad,@format)
+	@monto_formated_actual=format(@monto,@format)
+	// do rise_error(00,to.json(@("&./vencidos")))
+
+	ref listall=list.create()
+	for i=0;i<@count(@("&./vigentes")){do list.add(listall,@item(@("&./vigentes"),i))}
+	for i=0;i<@count(@("&./vencidos")){do list.ins(listall,i,@item(@("&./vencidos"),i))}
+
+	// do rise_error(99,@count(@("&./vencidos")))
+	ref @listall_conceptos=listall
+
+	@sys_guidplan=@('./plan/sys_guid')
+	@path_plan=path.concat(@path_files,@sys_guidplan)
+
+	do check_permissions_administrative(@("&database"))
+	#$
+	div(class="container-lg pt-1 ps-3 pe-3" style="background-color:#F5F5F5; min-height:94%;" id="container-ventas")
+	{
+		#!
+		#include "../modals.dkl"
+		#$
+		div(class="p-4 bg-white border-bottom" id="container-card" style="min-height:80vh")
+		{
+			div(class="card")
+			{
+				div(class="card-body")
+				{
+					div(class="d-flex align-items-center justify-content-end")
+					{
+						span(class="cgray" onclick="view.redirec('#<@RR_PLAN_MENSUAL>')")
+						{
+							$'<svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" fill="currentColor" class="bi bi-x-lg" viewBox="0 0 16 16">
+								<path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854Z"/>
+							</svg>'
+						}
+					}
+					
+					h4(class="" disabled="true" name="nombre" id="nombre"){$"#<@('$./plan/nombre')>"}
+					div(class="row")
+					{
+						div(class="col-lg-8 mt-1 ")
+						{
+							div(class="d-flex")
+							{
+								b(class="" name="ref_cliente_text"  id="ref_cliente_text" disabled="true" maxlength="50"){$"#<@('$./plan/cliente')>" 
+									a(href="../rr_plan_mensual/#<@('./plan/sys_pk')>/?cedit=1&uri=#<url_encode(url_current)>" style="text-decoration: none;"){$' <svg title="Cambiar cliente" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pencil" viewBox="0 0 16 16">
+												  <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/>
+												</svg>'}
+								}
+							}
+						}
+						div(class="col-lg-4 mt-1 d-flex justify-content-end")
+						{
+							#!
+							idcontrato=ifstr(@('$./plan/id_contrato')=='','<A>',@('$./plan/id_contrato'))
+							#$
+							b(class="" disabled="true" name="id_contrato" id="id_contrato" maxlength="50"){$"#<idcontrato>"}
+						}
+						div(class="col-lg-12 mt-1")
+						{
+							div(class="d-flex")
+							{
+								span(class="flex-grow-1" style="" disabled="true" name="objeto_contrato" id="objeto_contrato"){"#<@('$./plan/objeto_contrato')>"}
+								span(style="min-width: 5rem;"){"#<status>"}
+							}
+							
+						}
+					}
+					
+					hr{}
+					div(class="row")
+					{
+						div(class="col-lg-6")
+						{
+							#!
+							inicio=date_str(str2dt(@("$./plan/inicio")),"yyyy-MM-dd")
+							fin=date_str(str2dt(@("$./plan/fin")),"yyyy-MM-dd")
+							#$
+							table(class="table")
+							{
+								tbody(class="tbody-normal" )
+								{
+									tr
+									{
+										td{"Contratación:"}
+										td{"#<@('$./plan/contratacion')>"}
+									}
+									#!
+									if @fecha_renovacion!=""
+									{
+										#$
+										tr(class="")
+										{
+											td{"Fecha de renovación "}
+											td{$"#<@fecha_renovacion>"}
+										}
+									}
+									tr(class="")
+									{
+										td{"Primer vencimiento "}
+										td{$"#<inicio>"}
+									}
+									tr(class="")
+									{
+										td{"Último vencimiento "}
+										td{$"#<fin>"}
+									}
+									#!
+									clave1=@("$./plan/clave1")
+									clave2=@("$./plan/clave2")
+									clave3=@("$./plan/clave3")
+									clave4=@("$./plan/clave4")
+									clave5=@("$./plan/clave5")
+
+									txtclave1=ifstr(@("$./plan/txt_clave1")=="","",@("$./plan/txt_clave1")+" ")
+									txtclave2=ifstr(@("$./plan/txt_clave2")=="","",@("$./plan/txt_clave2")+" ")
+									txtclave3=ifstr(@("$./plan/txt_clave3")=="","",@("$./plan/txt_clave3")+" ")
+									txtclave4=ifstr(@("$./plan/txt_clave4")=="","",@("$./plan/txt_clave4")+" ")
+									txtclave5=ifstr(@("$./plan/txt_clave5")=="","",@("$./plan/txt_clave5")+" ")
+									
+									#!
+									if clave1!=""
+									{
+										#$ 
+										tr
+										{
+											td{"#<txtclave1>"}
+											td{"#<clave1>"}
+										}
+										
+									}
+									#!
+									if clave2!=""
+									{
+										#$ 
+										tr
+										{
+											td{"#<txtclave2>"}
+											td{"#<clave2>"}
+										}
+									}
+									#!
+									if clave3!=""
+									{
+										#$ 
+										tr
+										{
+											td{"#<txtclave3>"}
+											td{"#<clave3>"}
+										}
+									}
+									#!
+									if clave4!=""
+									{
+										#$ 
+										tr
+										{
+											td{"#<txtclave4>"}
+											td{"#<clave4>"}
+										}
+									}
+									#!
+									if clave5!=""
+									{
+										#$ 
+										tr
+										{
+											td{"#<txtclave5>"}
+											td{"#<clave5>"}
+										}
+									}
+								#$
+								}
+							}
+						}
+						div(class="col-lg-6")
+						{
+							b{"Datos del plan"}
+							//crear html para acciones de ediciones
+							script
+							{
+								$'
+								view.htmlmensualidad=`<a href="#"><svg onclick="view.showModal(\'#modaleditmonto\')" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pencil" viewBox="0 0 16 16">
+												  <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/>
+												</svg></a>`;
+
+								if(#<not(@isadmin)>){view.htmlmensualidad="";}
+								'
+							}
+							table(class="table")
+							{
+								tbody(class="columns" id="tbody-plan")
+								{
+								
+									tr(class="col-lg-6" id="dv-cuota_apertura"){$""}
+									tr(class="col-lg-6" id="dv-anticipo"){$""}
+									tr(class="col-lg-6" id="dv-meses"){$""}
+									tr(class="col-lg-6" id="dv-mensualidad"){$""}
+									tr(class="col-lg-6" id="dv-monto"){$""}
+									tr(class="col-lg-6")
+									{
+										td{"Saldo total "}
+										td(style="text-align:end"){b{"#<format(@saldo_total,'$ #,#.00')>"}}
+									}
+									#!
+									if @totalvencidos>0
+									{
+										#$
+										tr(class="col-lg-6")
+										{
+											td{"Saldo vencido"}
+											td(style="text-align:end"){b{"#<format(@totalvencidos,'$ #,#.00')>"}}
+										}
+										#!
+									}
+									else if @nextmensualidad>0
+									{
+										#$
+										tr(class="col-lg-6")
+										{
+											td{"Próxima mensualidad "}
+											td(style="text-align:end"){b{"#<format(@nextmensualidad,'$ #,#.00')>"}}
+										}
+										// label(class="d-flex"){"Próxima mensualidad: "h5(style="margin-left: 5px;"){$" #<format(@nextmensualidad,'$ #,#.00')>"}}
+									}
+									#$
+								}
+							}
+						}
+					}
+					div(class="d-flex")
+					{
+						a(href="../rr_plan_mensual/#<@('./plan/sys_pk')>/?uri=#<url_encode(url_current)>"){span{$"Detalles"}}
+						span(class="flex-grow-1"){$""}
+						#!
+						if @status_plan==0 && @isadmin
+						{
+							#$
+							button(class="btn btn-primary btn-sm" onclick="model.actionControl(#<@sys_pk_plan>,event,'./rr_plan_mensual/','',true)"){"Activar"}
+							#!
+						}
+						else if @status_plan!=0
+						{
+							#! 
+								do printModuleUpload("plan")
+							#$
+						}
+						
+					}
+					#!
+					if dir.exists(@path_plan)
+					{
+						ref files=list.files(@path_plan,"*")
+						if @count(files)>0
+						{
+							#$
+							div(class="card")
+							{
+								div(class="card-body")
+								{
+									div(class="comprobantes")
+									{$""
+										#!
+										for i=0;i<@count(files)
+										{
+											file=list.str(files,i)
+											#$
+											a(class="btn btn-primary" target="_blank" href="plan/file/pago.download?plan=#<@sys_guidplan>&file=#<file.name(file)>" style="margin-right: 2px;color:black;background-color: white;"){"#<file.name(file)>"}
+										}
+										style
+										{
+											$'
+											.btn-primary:hover {
+											    color: #fff !important;
+											    background-color: #0b5ed7 !important;
+											    border-color: #0a58ca !important;
+											}
+											'
+										}
+										
+										#$
+									}
+								}
+							}
+
+						}
+						
+					}
+				}
+				input(type="hidden" name="comision" id="comision")
+				input(type="hidden" name="anticipo" id="anticipo")
+				input(type="hidden" name="meses" id="meses")
+				input(type="hidden" name="mensualidad" id="mensualidad")
+				input(type="hidden" name="monto" id="monto")
+				script
+				{
+					$'
+					$(document).ready(function(){
+						view.loadDataTipoPlan(#<to.json(@("&./plan"))>,false);
+						view.moneda="#<@("$./plan/divisa")>";
+						view.dataVencidos=#<@("&./vencidos")>;
+						view.totalvencidos=#<@("#./totalvencidos")>;
+						view.nextmensualidad=#<@("#./totalnextmensualidad")>;
+						view.datavigentes=#<@("&./vigentes")>;
+						view.montoplan=#<@mensualidad>;
+						view.mesesactual=#<@meses>
+						view.anticipoactual=#<@anticipo>;
+						view.iniPagar();
+
+						view.initFile();
+					});
+					
+					'
+				}
+				style
+				{
+					$'
+					#tbody-plan>tr>td{padding:8px !important;}
+					.tbody-normal>tr>td{padding:8px !important;}
+					'
+				}
+			}
+			#! 
+			if @status_plan!=0
+			{
+				#$
+				hr(data="aki"){""}
+			}
+			
+			div(class="d-flex align-items-center" id="div-btns-actions")
+			{
+				#!
+				if @status_plan==1 && (@count(@("&./vencidos"))>0 || @count(@("&./vigentes"))>0)
+				{
+					#$
+					
+					button(class="btn btn-primary btn-sm m-1 btn-block" onclick="view.showModal('#modalcobrar')"){"Cobrar"}
+					#!
+					if @vw=="" 
+					{
+						if @isadmin
+						{
+							#$
+							button(class="btn btn-success btn-sm m-1" onclick="view.showModal('#modalquita')"){"Quita"}
+							button(class="btn btn-success btn-sm m-1" onclick="view.showModal('#modalcargo')"){"Cargo"}
+						}
+						
+						a(class="btn btn-light btn-sm m-1" href="./?_plan=#<@('./plan/sys_pk')>&_cardex=1&vw=pagos"){"Historial de pagos"}
+						
+						#!
+						if @isadmin
+						{
+							#$
+							button(class="btn btn-light btn-sm m-1" onclick="model.actionControl(#<@('./plan/sys_pk')>,null,'./rr_plan_mensual/','cancelar',true)"){"Cancelar plan"}
+						}
+						
+						span(class="flex-grow-1"){""}
+						a(class="" href="#" onclick="model.restablecerPagos(#<@('./plan/sys_pk')>)"){"Reconstruir"}	
+					}
+					#!
+				}else if @status_plan==3 && @isrenovable && @isadmin
+				{
+					#$
+					button(class="btn btn-primary btn-sm m-1" onclick="view.showModal('#modalrenovacion')"){"Renovar plan"}
+				}
+				
+				#!
+				if @vw!=""
+				{
+					#$
+					a(class="btn btn-light btn-sm" href="./?_plan=#<@('./plan/sys_pk')>&_cardex=1"){"Cardex de mensualidades"}	
+				}
+			}
+				
+			
+			#!
+			if @status_plan!=0
+			{
+				#$
+				hr{""}
+			}
+			
+			div(class="col")
+			{
+				div(class="col-lg-12")
+				{
+					#!
+					filePago::path,pago
+					{
+						if not(dir.exists(path)){return ""}
+
+						ref files=list.files(path,"*")
+						for i=0;i<@count(files);i=1
+						{
+							file=list.str(files,i)
+							return '<a target="_blank" href="plan/file/pago.download?plan='+@sys_guidplan+'&pago='+pago+'&file='+file.name(file)+' ">'+file.name(file)+'</a>'
+						}
+						return ""
+					}
+					@show_btn_add=@false
+					@show_style_min_max_h_w=@false
+					@show_msj_data=@false
+
+					if @vw==""
+					{
+						new @table_definition
+						{
+							@"datatable*":@("&./vencidos")
+	            			@"value_field":"sys_pk"
+
+	            			member @"columns"
+	            			{
+	            				member @"vencimiento"
+	            				{
+	            					@"caption":"Vencimiento"
+	            					// @"format":"yyyy-MM-dd"
+	            				}
+	            				member @"concepto"{@"caption":"Concepto"}
+	            				member @"importe_total"
+	            				{
+	            					@"caption":"Importe"
+	            					@"format":"$ #,#.00"
+	            					member @"attributes"
+	            					{
+	            						@"style":"text-align:right"
+	            					}
+	            					@"summary":"sum"
+	            				}
+	            				member @"pagos"
+	            				{
+	            					@"caption":"Pagos"
+	            					@"format":"$ #,#.00"
+	            					member @"attributes"
+	            					{
+	            						@"style":"text-align:right"
+	            					}
+	            					@"summary":"sum"
+	            				}
+	            				member @"saldo"
+	            				{
+	            					@"caption":"Saldo"
+	            					@"format":"$ #,#.00"
+	            					member @"attributes"
+	            					{
+	            						@"style":"text-align:right"
+	            					}
+	            					@"summary":"sum"
+	            				}
+	            				member @"_act"
+	            				{
+	            					@"caption":""
+	            				}
+	            				
+	            			}
+
+	            			member @"rows_attributes"
+					        {
+					        	member @"detail"
+					        	{
+					        		@"class":"row_tr_#<@@(row,'sys_pk')> row_case"
+					        		@"style":"cursor:pointer"
+					        		@"onclick":"model.detailCardex(#<@@(row,'sys_pk')>)"
+					        	}
+					        }
+						}
+						
+						do tableGlobalDefinition()
+						
+						using @table_definition{@"datatable*":@("&./vigentes")}
+						#!
+					}
+					else
+					{	
+						
+						cell_link_func::&params, &row, &cell
+						{
+							if @@(cell,"cell_type")!="data" &&  @@(cell,"cell_type")!="unknow" { return }
+							if @@(cell,"column")=="comprobante"
+							{
+								path=path.concat(@path_plan,@@(row,"$sys_guid"))
+								cell<"text">:filePago(path,@@(row,"$sys_guid"))
+							}
+						}
+						new @table_definition
+						{
+							@"datatable*":@("&./pagos")
+	            			@"value_field":"sys_pk"
+
+	            			member @"columns"
+	            			{
+	            				member @"formapago"
+	            				{
+	            					@"caption":"Forma de pago"
+	            				}
+	            				member @"fecha"
+	            				{
+	            					@"caption":"Fecha de pago"
+	            				}
+	            				member @"importe"
+	            				{
+	            					@"caption":"Importe"
+	            					@"format":"$ #,#.00"
+	            					member @"attributes"
+	            					{
+	            						@"style":"text-align:right"
+	            					}
+	            					@"summary":"sum"
+	            				}
+	            				member @"divisa"
+	            				{
+	            					@"caption":"Divisa"
+	            				}
+	            				member @"usuario"
+	            				{
+	            					@"caption":"Usuario"
+	            				}
+	            				member @"referencia"
+	            				{
+	            					@"caption":"Referencia"
+	            				}
+	            				member @"notas"
+	            				{
+	            					@"caption":"Notas"
+	            				}
+	            				member @"comprobante"
+	            				{
+	            					@"caption":"Comprobante"
+	            				}
+	            			}
+						}
+					}
+					do tableGlobalDefinition()
+					
+				}
+			}
+		}
+	}
+}

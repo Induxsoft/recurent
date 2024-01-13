@@ -1,0 +1,59 @@
+#include "dkli.dkh"
+#!
+module "rr_tipo_movimiento.dk"
+{
+	#include "website.dkl"
+	@keyfield="id"
+	@list_query="select * from #<@table_name>"
+	@read_query="select * from #<@table_name> where #<@keyfield>=@_entity_id limit 1;"
+
+	
+	function rr.create(&db,&params,&data)
+	{
+			data<"id">:dbr.num(db,"select max(id)+1 from rr_tipo_movimiento limit 1",@null)
+			do dbr.insert(db,"rr_tipo_movimiento",data)
+			
+			return entity.read(db,params)
+
+		exception
+		{
+			do rise_error(99,last_error())
+		}
+	}
+
+	function rr.update(&db,&params,&data)
+	{
+		new p
+		{
+			@"id":@@(params,"_entity_id")
+			@"const":@@(data,"const")
+		}
+		s="update rr_tipo_movimiento set const='"+@@(p,'const')+"' where id="+@@(p,"id")
+		
+		do dbr.execute(db,"update rr_tipo_movimiento set const=@const where id=@id",p)
+		return entity.read(db,params)
+		
+
+		exception
+		{
+			do rise_error(99,last_error())
+		}
+	}
+	function rr.delete(&db,&params)
+	{
+		new p
+		{
+			@"id":@@(params,"_entity_id")
+		}
+		do dbr.delete(db,"rr_tipo_movimiento","id=@id",p) 
+
+		exception
+		{
+			error="Verifique que la entidad no este relacionado a otra tabla,"+last_error()
+			do rise_error(99,error)
+		}
+	}
+	point @create to rr.create
+	point @update to rr.update
+	point @delete to rr.delete
+}

@@ -1,0 +1,250 @@
+#include "dkli.dkh"
+#!
+module "form"
+{
+	
+	#include "functions.dkh"
+	#include "serialize.dkh"
+	#include "uielements.dkl"
+	#include "dbr.dkh"
+	do @context.begin(@crud_context)
+
+	ref @http_context=@("&http")
+	#include "website.dkl"
+
+	new def_divisas
+    {
+    	@"datatable*":dbr.list(@("&database"),"SELECT rd.clave,CONCAT('[',rd.clave,'] ',rd.valor)valor FROM rr_divisas rd ",@null)
+        @"id":"divisa"
+        member "attributes"
+        {
+            @"class":"form-select form-select-sm"
+            @"name":"divisa"
+        }
+        @"value_field":"clave"
+        @"text_field":"valor"
+        @"selected":ifstr(@('./divisa')=="","MXN",@('./divisa'))
+    }
+	error=@("$error/message")
+	#$
+	div(class="container-lg pt-1 ps-3 pe-3" style="background-color:#F5F5F5; min-height:94%;" id="container-ventas")
+	{
+		div(class="p-4 bg-white border-bottom" id="container-card" style="min-height:80vh")
+		{
+			div(class="card")
+			{
+				div(class="card-body")
+				{
+					div(class="d-flex justify-content-end " style="justify-items: center;align-items: center;")
+					{
+						$'<svg class="cgray" xmlns="http://www.w3.org/2000/svg" width="25" height="25" onclick="view.redirec(\'../\')" fill="currentColor" class="bi bi-x-lg pointer hover-gray" viewBox="0 0 16 16">
+							  <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854Z"/>
+							</svg>'
+					}
+					div(class="#<ifstr(error!='','alert alert-danger','')>"){"#<error>"}
+					form(action="." method="POST" onsubmit="return op.validate()")
+					{
+						#!
+						if @('#./sys_pk')>0
+						{
+							#$ h5{"Núm. tipo: #<@('#./sys_pk')>"}
+						}
+						
+						div(class="row")
+						{
+							div(class="col-lg-8")
+							{
+								label("for"="nombre"){"Nombre:"}
+								input(class="form-control form-control-sm" name="nombre" id="nombre" value="#<@('$./nombre')>" maxlength="50")
+							}
+							div(class="col-lg-4")
+							{
+								label("for"="nombre"){"Divisa:"}
+								#!
+								do uie.dbSelect(def_divisas)
+								#$
+								// select(class="form-select form-select-sm" id="divisa" name="divisa")
+								// {
+								// 	option(value="MXN"){"MXN"}
+								// }
+							}
+							div(class="col-lg-8")
+							{
+								label("for"="objeto_contrato"){"Objeto del contrato:"}
+								textarea(class="form-control form-control-sm" style="height: 180px;" name="objeto_contrato" id="objeto_contrato"){"#<@('$./objeto_contrato')>"}
+							}
+						}
+						div(class="columns")
+						{
+							b{"Monto duración"}
+							div(class="col-lg-2")
+							{
+								label("for"="comision"){"Cuota de apertura:"}
+								input(class="form-control form-control-sm" name="comision" maxlength="15" onkeypress="return op.filterFloat(event,this)" id="comision" value="#<@('#./comision')>"){""}
+							}
+							div(class="col-lg-2")
+							{
+								label("for"="anticipo"){"Anticipo:"}
+								input(class="form-control form-control-sm" name="anticipo" maxlength="15" onkeypress="return op.filterFloat(event,this)" onkeyUp="op.cal_monto()" id="anticipo" value="#<@('#./anticipo')>"){""}
+							}
+							div(class="col-lg-2")
+							{
+								label("for"="meses"){"Meses:"}
+								input(class="form-control form-control-sm" name="meses" id="meses" maxlength="11" onkeypress="return op.filterInt(event,this)" onkeyUp="op.cal_monto()" value="#<@('#./meses')>"){""}
+							}
+							div(class="col-lg-2")
+							{
+								label("for"="mensualidad"){"Mensualidad:"}
+								input(class="form-control form-control-sm" name="mensualidad" maxlength="50" id="mensualidad" onkeypress="return op.filterFloat(event,this)" onkeyUp="op.cal_monto()" value="#<@('#./mensualidad')>"){""}
+							}
+							
+							
+							div(class="col-lg-2")
+							{
+								label("for"="monto"){"Monto:"}
+								input(class="form-control form-control-sm" name="monto" id="monto" maxlength="17" readonly="true" value="#<@('#./monto')>"){""}
+							}
+							
+							
+						}
+						hr{}
+						div(class="columns")
+						{
+							b{"Renovación"}
+							div(class="col-lg-2 d-flex align-items-center")
+							{
+								#!
+								renovable=@("#./renovable")
+								#$
+								label("for"="renovable" class="d-flex" style="gap:10px"){input(type="checkbox" name="renovable" id="renovable" "#<ifstr(renovable,'checked','')>"="") "Renovable"}
+							}
+							div(class="col-lg-2")
+							{
+								label("for"="cuota_renovacion"){"Cuota de renovación:"}
+								input(class="form-control form-control-sm" name="cuota_renovacion" maxlength="15" "#<ifstr(renovable,'','readonly')>"="true" id="cuota_renovacion" onkeypress="return op.filterFloat(event,this)" value="#<@('#./cuota_renovacion')>"){""}
+							}
+							
+							div(class="col-lg-2 d-flex align-items-center")
+							{
+								#!
+								autorenovable=@("#./autorenovable")
+								#$
+								label("for"="autorenovable" class="d-flex" style="gap:10px"){input(type="checkbox" "#<ifstr(renovable,'','disabled')>"="true" name="autorenovable" id="autorenovable" "#<ifstr(autorenovable,'checked','')>"="") "Auto renovable"}
+							}
+							input(type="hidden" name="sys_pk" value="#<@('#./sys_pk')>")
+							input(type="hidden" name="sys_recver" value="#<@('#./sys_recver')>")
+						}
+						hr{}
+						div(class="row")
+						{$""
+							b{"Pronto pago"}
+							div(class="col-lg-2")
+							{
+								label{"Descuento (%):"}
+								input(class="form-control form-control-sm" name="desc_pronto_pago" maxlength="7" id="desc_pronto_pago" value="#<@('#./desc_pronto_pago')>")
+								
+							}
+							div(class="col-lg-2")
+							{
+								label{"Bonificación: "}
+								input(class="form-control form-control-sm" name="boni_pronto_pago" maxlength="15" id="boni_pronto_pago" onkeypress="return op.filterFloat(event,this)" value="#<@('#./boni_pronto_pago')>")	
+							}
+							div(class="col-lg-2")
+							{
+								label{"Días pronto pago: "}
+								input(class="form-control form-control-sm" name="dias_pronto_pago" maxlength="15" id="dias_pronto_pago" onkeypress="return op.filterInt(event,this)" value="#<@('#./dias_pronto_pago')>")	
+							}
+						}
+						div(class="row")
+						{
+							b{"Pago tardío"}
+							div(class="col-lg-2")
+							{
+								label{"Cargo retraso (%):"}
+								input(class="form-control form-control-sm" name="cargo_retraso" maxlength="7" onkeypress="return op.filterFloat(event,this)" id="cargo_retraso" value="#<@('#./cargo_retraso')>")
+								
+							}
+							div(class="col-lg-2")
+							{
+								label{"Cuota retraso: "}
+								input(class="form-control form-control-sm" name="cuota_retraso" maxlength="15" onkeypress="return op.filterFloat(event,this)" id="cuota_retraso" value="#<@('#./cuota_retraso')>")
+							}
+							div(class="col-lg-2")
+							{
+								label{"Días pago tardío: "}
+								input(class="form-control form-control-sm" name="dias_pago_tardio" maxlength="15" id="dias_pago_tardio" onkeypress="return op.filterInt(event,this)" value="#<@('#./dias_pago_tardio')>")	
+							}
+						}
+						hr{}
+						div(class="col-lg-6")
+						{
+							label{"Web hook: "}
+							input(class="form-control form-control-sm" name="webhook" maxlength="1024" id="webhook" value="#<@('$./webhook')>")
+						}
+						hr{}
+						div(class="columns")
+						{
+							b{"Campos adicionales"}
+							div(class="col-lg-4 d-flex mb-2" style="gap:10px")
+							{
+								input(class="form-control form-control-sm" name="txt_clave1" maxlength="50" id="txt_clave1" value="#<@('$./txt_clave1')>")
+								#!
+								req_clave1=@("#./req_clave1")
+								#$
+								label(class="d-flex" style="gap:5px"){input(type="checkbox" name="req_clave1" "#<ifstr(req_clave1,'checked','')>"="true" id="req_clave1")" Requerido"} 
+							}
+							div(class="col-lg-4 d-flex mb-2" style="gap:10px")
+							{
+								input(class="form-control form-control-sm" name="txt_clave2" maxlength="50" id="txt_clave2" value="#<@('$./txt_clave2')>")
+								#!
+								req_clave2=@("#./req_clave2")
+								#$
+								label(class="d-flex" style="gap:5px"){input(type="checkbox" name="req_clave2" "#<ifstr(req_clave2,'checked','')>"="true" id="req_clave2")" Requerido"} 
+							}
+							div(class="col-lg-4 d-flex mb-2" style="gap:10px")
+							{
+								input(class="form-control form-control-sm" name="txt_clave3" maxlength="50" id="txt_clave3" value="#<@('$./txt_clave3')>")
+								#!
+								req_clave3=@("#./req_clave3")
+								#$
+								label(class="d-flex" style="gap:5px"){input(type="checkbox" name="req_clave3" "#<ifstr(req_clave3,'checked','')>"="true" id="req_clave3")" Requerido"} 
+							}
+							div(class="col-lg-4 d-flex mb-2" style="gap:10px")
+							{
+								input(class="form-control form-control-sm" name="txt_clave4" maxlength="50" id="txt_clave4" value="#<@('$./txt_clave4')>")
+								#!
+								req_clave4=@("#./req_clave4")
+								#$
+								label(class="d-flex" style="gap:5px"){input(type="checkbox" name="req_clave4" "#<ifstr(req_clave4,'checked','')>"="true" id="req_clave4")" Requerido"} 
+							}
+							div(class="col-lg-4 d-flex mb-2" style="gap:10px")
+							{
+								input(class="form-control form-control-sm" name="txt_clave5" maxlength="50" id="txt_clave5" value="#<@('$./txt_clave5')>")
+								#!
+								req_clave5=@("#./req_clave5")
+								#$
+								label(class="d-flex" style="gap:5px"){input(type="checkbox" name="req_clave5" "#<ifstr(req_clave5,'checked','')>"="true" id="req_clave5")" Requerido"} 
+							}
+						}
+						div(class="d-flex justify-content-end")
+						{
+							input(type="submit" class="btn btn-primary m-1" value="Aceptar")
+							a(class="btn btn-danger m-1" href="../"){"Cancelar"}
+						}
+					}
+					
+				}
+			}
+			
+		}
+
+		script
+		{
+			$'
+			$(document).ready(function(){
+				op.init();
+			});
+			'
+		}
+	}
+}

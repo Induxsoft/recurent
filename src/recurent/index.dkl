@@ -1,0 +1,17 @@
+#include "dkli.dkh"
+#!
+module "indes"
+{
+	#include "functions.dkh"
+	
+	if @@(@http_context,"$session/user/ids") == "" {
+		@http_context<"response/headers/location"> : "/"
+		return
+	}
+	else {
+		@http_context<"response/headers/location"> : "/!/recurent/rr_plan_mensual/"
+		return
+	}
+	
+	#$ p{"rr.ws.induxsoft.net"}
+}

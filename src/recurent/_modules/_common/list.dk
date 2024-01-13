@@ -1,0 +1,153 @@
+#include "dkli.dkh"
+#!
+module "list"
+{
+	#include "functions.dkh"
+	#include "serialize.dkh"
+	#include "uielements.dkl"
+    #include "uielements.dbtable.dkl"
+    #include "website.dkl"
+
+    if isset("@crud_context"){ref @http_context=@@(@crud_context,"&http")}
+    @_entity_type=@@(@http_context,"request/get/_entities_type")
+    // do rise_error(00,@_entity_type)
+    url_current=current_url(@false)
+
+    @_entity_type=""
+    switch @@(@http_context,"request/get/_entities_type")
+    {
+        case "rr_tipo_plan_mensual"{@_entity_type=ifstr(not(contains(url_current,"rr_tipo_plan_mensual")),"/rr_tipo_plan_mensual/","/")}
+        case "rr_plan_mensual"{@_entity_type=ifstr(not(contains(url_current,@__entities_first)),"/"+@__entities_first+"/","/")}
+    }
+    
+    @text_btn_add="Agregar"
+    @show_btn_add=@true
+    @show_msj_data=@true
+    @show_style_min_max_h_w=@true
+    @styles=""
+    cell_link_func::&params, &row, &cell
+    {
+        new headers
+        {
+            @"style":"position: sticky !important;top:0 !important;background-color:#fff;"
+        }
+        if @@(cell,"element")=="th"{cell<"attributes*">:headers}
+
+        new attr{@"style":""}
+      
+        cell<"attributes*">:attr
+
+        if @@(cell,"cell_type")!="data" &&  @@(cell,"cell_type")!="unknow" { return }
+        if @@(cell,"column")=="_actions"
+        {
+
+            cell<"text">:ftext('
+                <div class="btn-group" role="group" aria-label="Button group with nested dropdown">
+                    <div class="btn-group" role="group">
+                        <button id="btnGroupDrop1" type="button" onclick="event.stopPropagation()" class="btn btn-sm btn-light dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                            Opciones
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="btnGroupDrop1">
+                            <li class="d-flex align-items-center gap-2 p-2">
+                                <a id="btnEditar" href=".#<@_entity_type>#<@@(row,"sys_pk")>/" class="text-decoration-none text-secondary">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#888" class="bi bi-pencil" viewBox="0 0 16 16">
+                                        <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/>
+                                    </svg>
+                                    Editar
+                                </a>
+                            </li>
+                            <li class="d-flex align-items-center gap-2 p-2">
+                                <a onclick="model.deleteEntity(#<@@(row,"sys_pk")>,event,\'#<@_entity_type>\')" href="#" id="btnEliminar" class="text-decoration-none text-secondary">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#888" class="bi bi-trash" viewBox="0 0 16 16">
+                                        <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
+                                        <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
+                                    </svg>
+                                    Eliminar
+                                </a>
+                            </li>
+                           
+                        </ul>
+                    </div>
+                </div>
+            ')
+            
+        }
+        
+    }
+
+    genTable::
+    {
+        new @table_definition
+        {
+            @"datatable*":@("&.")
+            @"value_field":"sys_pk"
+            member @"columns"
+            {
+                member @"nombre"{@"caption":"Nombre"}
+                member @"objeto_contrato"{@"caption":"Objeto del contrato"}
+                member @"mensualidad"{@"caption":"Mensualidad"}
+                member @"meses"{@"caption":"Meses"}
+                member @"anticipo"{@"caption":"Anticipo"}
+                member @"monto"{@"caption":"Monto"}
+                member @"comision"{@"caption":"Comision"}
+                member @"_actions"{@"caption":""}
+            }
+        }
+    }
+    @table_attributes="table table-hover"
+    @txt_msg_data="Ningún dato encontrado."
+    tableGlobalDefinition::
+    {
+        if not(isset("@table_definition")){do genTable()}
+
+        point cell_link to cell_link_func
+        using @table_definition
+        {
+            @"before_cell*":cell_link
+            // @"build_array":@true
+            member @"attributes"
+            {
+                @"class":@table_attributes
+            }
+        }
+        ##
+        div(class="container-fluid")
+        {
+            #!
+            if @show_btn_add
+            {
+                #$ a(class="btn btn-light shadow-sm p-2 mb-2 bg-white" href=".#<@_entity_type>_new/" id="btnAgregar"){i(class="fa fa-plus" style="color:#dc3545"){""}$"#<@text_btn_add>"}
+            }
+            #!
+            style=""
+            if @show_style_min_max_h_w{style="min-height:80vh;max-height:80vh;"+@styles }
+            #$
+            div(style="overflow-y:auto;#<style>")
+            {
+                     ##
+                    do uie.dbtable(@table_definition)
+                    if @count(@@(@table_definition,"&datatable"))<=0 && @show_msj_data
+                    {
+                        #$
+                        div(class="text-center")
+                        {
+                            h4(style="margin-top:10%;color:#888;"){"#<@txt_msg_data>"}
+                        }
+                    }
+                    ##
+                    #$
+                    style{
+                        $'
+                        #btnEditar:hover{color:deepskyblue}
+                        #btnEliminar:hover{color:red}
+                        #btnDetalles:hover{color:green}
+                        thead{line-height:3rem;font-size:.9rem;color:#888;font-weight:400;}
+                        tr,th{font-size:.9rem;}
+                        td{padding:1rem 6px !important;color:#000;font-weight:400;}
+                        '
+                    }
+            }
+        }
+        ##
+    }
+}

@@ -1,0 +1,30 @@
+#include "dkli.dkh"
+#!
+module "download"
+{
+	#include "functions.dkh"
+	#include "serialize.dkh"
+	#include "../config.dk"
+
+	ref getData=@@(@http_context,"&request/get")
+	if isnull(getData){do rise_error(99,"párametros incompletos.")}
+
+	if @@(getData,"plan")==""{do rise_error(99,"Falta un identificador del archivo.")}
+
+	@sys_guidplan=@@(getData,"$plan")
+	@path_plan=path.concat(@path_files,@sys_guidplan)
+	@path_plan=path.concat(@path_plan,@@(getData,"$pago"))
+	@path_plan=path.concat(@path_plan,@@(getData,"$file"))
+
+	if not(file.exists(@path_plan)){do rise_error(99,"El archivo "+@@(getData,"$file")+" no existe "+@path_plan)}
+
+	@http_context<"response/headers/content-type">:"application/octet-stream;charset=utf-8"
+	@http_context<"response/headers/content-disposition">: "attachment; filename="+@@(getData,"file")+""
+	@http_context<"response/output">:"binary"
+	@http_context<"response/binary*">: file.rbytes(@path_plan)
+
+	exception
+	{
+		do rise_error(99,last_error())
+	}
+}

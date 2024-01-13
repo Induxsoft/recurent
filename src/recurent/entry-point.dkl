@@ -1,0 +1,223 @@
+﻿#include "dkli.dkh"
+#!
+module "Controller configs"
+{
+	#include "functions.dkh"
+	#include "serialize.dkh"
+	#include "webcl.dkh"
+	#include "dbr.dkh"
+	#include "ws.api.dkl"
+	#include "website.dkl"
+	#include "crudl/crudl.dk"
+	#include "linux-fixes.dkh"
+
+	if @@(@http_context,"$session/user/ids") == "" {
+		@http_context<"response/headers/location"> : "/"
+		return
+	}
+
+	@base_path = "_modules"
+	@path_root = @path_web
+	
+	//No modifique a menos que sepa lo que está haciendo
+	if not(field.exist(@@(@http_context,"&session"),"resource")) { @http_context<"session/resource*">:record.create() }
+	if not(field.exist(@@(@http_context,"&session/resource"),"properties")) { @http_context<"session/resource/properties*">:record.create() }
+	if not(field.exist(@@(@http_context,"&session/resource/properties"),"web_meta_tags")) { @http_context<"session/resource/properties/web_meta_tags*">:record.create() }
+	if not(field.exist(@@(@http_context,"&session/resource/properties/web_meta_tags"),"web_page")){@http_context<"session/resource/properties/web_meta_tags/web_page*">:record.create()}
+	if not(field.exist(@@(@http_context,"&session/resource/properties"),"web_page")){@http_context<"session/resource/properties/web_page*">:record.create()}
+
+	@http_context<"session/resource/properties/web_meta_tags/title"> : "RecuRent"
+	text end_head
+	{$'
+		<!-- RecuRent -->
+		<link href="/$/recurent/css/styles.css" rel="stylesheet"></link>
+		<style>
+		:root{
+			--filter-panel-height: 15.648rem;
+			--table-cases-height: 30rem;
+		}
+		:root{
+			--principal-color: #0266C8;
+			--text-principal-color: #0266C8;
+			--ligth-gray: #f5f5f5;
+			--medium-gray: #888;
+			--error-color:red;
+		}
+		.table-cases-filter-height{
+			height: calc(var(--table-cases-height) - var(--filter-panel-height)) !important;
+		}
+		body {
+			margin-top: 0;
+		}
+		#main_navbar {
+			opacity: 1;
+		}
+		th{font-size:.9rem !important;color:#777 !important;font-weight:400 !important;}
+		tr{font-size:.9rem;}
+		.nav-tabs .nav-link.active{
+			border:none !important;
+			border-bottom:2px solid #0B5ED7 !important;
+			text-decoration: none !important;
+			color: #000 !important;
+			background-color: #F0F8FF !important;
+		}
+		.gray-hover:hover{color:#000 !important;}
+		.placeholder-glow .placeholder
+		{animation: placeholder-glow 2s ease-in-out infinite;}
+		.placeholder {
+			/*display: inline-block;*/
+			min-height: 1em;
+			vertical-align: middle;
+			cursor: wait;
+			background-color: currentcolor;
+			opacity: .5;
+		}
+		@keyframes placeholder-glow {
+		50% {
+			opacity: .2;
+		}
+		}
+		.colorb
+		{
+			background:white !important;
+			border:1px solid blue !important;
+			border-radius: 50%;
+			border-top: none !important;
+			width: 20px !important;
+			height: 20px !important;
+		}
+		.induxsoftLoginFormSpinner {
+			display: inline-block;
+			width: 15px;
+			height: 15px;
+			background-color: var(--text-principal-color);
+			border: 1px solid var(--principal-color);
+			animation-name: induxsoftLoginFormSpin;
+			animation-duration: 500ms;
+			animation-iteration-count: infinite;
+			animation-timing-function: linear; 
+		}
+		@keyframes induxsoftLoginFormSpin {
+			from {
+				transform:rotate(0deg);
+			}
+			to {
+				transform:rotate(360deg);
+			}
+		}
+		</style>
+		<!-- jQuery -->
+    	<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+		<!-- FontAwesome -->
+		<script src="https://kit.fontawesome.com/bbbd9b9be4.js" crossorigin="anonymous"></script>
+		<!-- JS -->
+		<script src="/$/recurent/js/moment.js" crossorigin="anonymous"></script>
+		<script src="/$/recurent/js/operations.js" crossorigin="anonymous"></script>
+		<script src="/$/recurent/js/util.js" crossorigin="anonymous"></script>
+		<script src="/$/recurent/js/model.js" crossorigin="anonymous"></script>
+		<script src="/$/recurent/js/view.js" crossorigin="anonymous"></script>
+	'}
+	@http_context<"session/resource/properties/web_page/end_head"> : end_head
+
+	_entities_type=ifstr(@@(@http_context,"$request/get/_view")!="",@@(@http_context,"$request/get/_view"),@@(@http_context,"$request/get/_program"))
+	_entity_id=ifstr(@@(@http_context,"$request/get/_view")!="",@@(@http_context,"$request/get/_entity_id")+"/"+@@(@http_context,"$request/get/_view")+"/","")
+	if _entities_type!=@@(@http_context,"$request/get/_program"){@http_context<"request/get/_entity_id">:""}
+
+	do crudl.routes.pattern("/_program/")
+	do crudl.routes.entity("rr_plan_mensual",_entities_type)
+	do crudl.routes.entity("rr_plan_mensual_cardex",_entities_type)
+	do crudl.routes.entity("rr_plan_mensual_pago",_entities_type)
+	do crudl.routes.entity("rr_tipo_movimiento",_entities_type)
+	do crudl.routes.entity("rr_tipo_plan_mensual",_entities_type)
+	
+	do crudl.routes.entity("_common",_entities_type)
+	do crudl.routes.entity("cliente",_entities_type)
+	do crudl.routes.entity("reports",_entities_type)
+	do crudl.routes.entity("setting",_entities_type)
+
+	@dbmvc_path="crudl/"
+
+	@auto_crud=@true
+
+	@db_engine="MY_SQL"	
+
+	@list_view="list.dk"
+
+	@form_view="form.dk"
+
+	@error_view="last_error.dk"
+
+	@entity_id_blank="_new"
+
+	@dkl_view_ext=".dk"
+	@websencia_ext=".jsnwm"
+
+    @crudl.user=""
+    @crudl.pwd=""
+
+    @path_template_protected=@path_root+"/_protected/default.htt"
+
+    @crudl.enable_idreplacement=@true
+
+    @ws=@@(@http_context,"request/get/ws")
+
+    @crudl.qname="Connections@induxsoft/ws"+@ws+"@workspaces"
+
+	@crudl.access_privilege='
+	{
+		"access":[{"workspace":"'+@ws+'"}]
+	}'
+
+	if @@(@http_context,"request/get/_entities_type")==""
+	{
+		@http_context<"request/get/_entities_type">:@__entities_first
+		@list_view="dashboard.dk"
+	}
+
+	// para los servicios
+	if @@(@http_context,"$request/get/_program") == "_services"
+	{
+		switch @@(@http_context,"$request/get/_svc")
+		{
+			case "upload-file"
+			{
+				include "_modules/upload.dkl"
+				return from.json(@@(@http_context,"$response/text"))
+				break
+			}
+			case "download-file"
+			{
+				include "_modules/download.dkl"
+				break
+			}
+		}
+	}
+	
+	// para los reportes
+	if @@(@http_context,"request/get/_entities_type")=="reports" && @@(@http_context,"request/get/_entity_id")=="cobranza"
+	{
+		@list_view="cobranza.dk"
+		@form_view="cobranza.dk"
+	}
+	if @@(@http_context,"request/get/_entities_type")=="reports" && @@(@http_context,"request/get/_entity_id")=="ingresos"
+	{
+		@list_view="ingresos.dk"
+		@form_view="ingresos.dk"
+	}
+	if @@(@http_context,"request/get/_entities_type")=="setting"
+	{
+		@list_view="setting.dkl"
+		@form_view="setting.dkl"
+	}
+
+	if @@(@http_context,"session/user/ids")==""
+	{
+		url_ws=path.concat(@url_origin,@ws)+"?token=@token"
+		url=current_url(@false)
+		url=ifstr(contains(url),"?","&token=@token","?token=@token")
+		@http_context<"response/headers/location">:url_ws+"?url="+url_encode(url)
+		return
+	}
+	
+	#include "crudl/controller.dkl"
+}

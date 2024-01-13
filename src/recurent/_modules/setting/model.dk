@@ -1,0 +1,65 @@
+#include "dkli.dkh"
+#!
+module "model.dk"
+{
+	#include "website.dkl"
+
+	setting.list::&db,&params
+	{
+		new data
+		{
+			@"list_teams*": ws.api.ListTeams()
+		}
+		return data
+	}
+	addFieldsSystem::&data
+	{
+		if isnull(data){return}
+
+		using data
+		{
+			@"sys_dtcreated*":now()
+			@"sys_timestamp*":now()
+			@"sys_guid":uuid()
+			@"Sys_Exported":0
+			@"Sys_DTExported*":now()
+		}
+	}
+	setting.create::&db,&params,&data
+	{
+		admin=dbr.str(db,"select varname from globalvar where VarName='rr_gpo_administradores' ",@null)
+		opera=dbr.str(db,"select varname from globalvar where VarName='rr_gpo_operadores' ",@null)
+
+		new global{@"VarValue":@@(data,"$admin")}
+		new globalopera{@"VarValue":@@(data,"$opera")}
+
+		new p
+		{
+			@"admin":"rr_gpo_administradores"
+			@"opera":"rr_gpo_operadores"
+		}
+		if admin==""
+		{
+			do addFieldsSystem(global)
+			global<"VarName">:"rr_gpo_administradores"
+			do dbr.insert(db,"globalvar",global)
+		}
+		else
+		{
+			do dbr.update(db,"globalvar",global,"VarName=@admin",p)
+		}
+		if opera==""
+		{
+			do addFieldsSystem(globalopera)
+			globalopera<"VarName">:"rr_gpo_operadores"
+			do dbr.insert(db,"globalvar",globalopera)
+		}
+		else
+		{
+			do dbr.update(db,"globalvar",globalopera,"VarName=@opera",p)
+		}
+		return data
+	}
+	point @create to setting.create
+	point @list	to setting.list
+}

@@ -1,0 +1,135 @@
+#include "dkli.dkh"
+#!
+module "model.dk"
+{
+	#include "website.dkl"
+
+	saldototal="SELECT ifnull(SUM(ROUND((rr1.importe - "+replace(@sql_descuento,"rr.","rr1.")+" + "+replace(@sql_recargo,"rr.","rr1.")+" )-ifnull(rr1.pagos,0),4)),0) saldo
+								FROM rr_plan_mensual_cardex rr1 INNER join rr_plan_mensual rrp on rr1.ref_plan=rrp.sys_pk WHERE rrp.ref_tipo=rrt.sys_pk AND IFNULL(rrp.`status`,0)=1"
+
+	saldosvencido="SELECT ifnull(SUM(ROUND((rr1.importe - "+replace(@sql_descuento,"rr.","rr1.")+" + "+replace(@sql_recargo,"rr.","rr1.")+" )-ifnull(rr1.pagos,0),4)),0) saldo
+								FROM rr_plan_mensual_cardex rr1 INNER join rr_plan_mensual rrp on rr1.ref_plan=rrp.sys_pk 
+								WHERE rrp.ref_tipo=rrt.sys_pk AND DATE(rr1.vencimiento)<=DATE(NOW()) AND ifnull(rrp.`status`,0)=1"
+
+
+			vencidos="SELECT COUNT(*) FROM rr_plan_mensual rrp 
+			where (select ifnull(SUM(ROUND((rr1.importe -  "+replace(@sql_descuento,"rr.","rr1.")+"+
+			 "+replace(@sql_recargo,"rr.","rr1.")+")-ifnull(rr1.pagos,0),4)),0) saldo
+			        FROM rr_plan_mensual_cardex rr1
+			        WHERE DATE(rr1.vencimiento)<=DATE(NOW()) AND rrp.sys_pk=rr1.ref_plan AND rrp.ref_tipo=rrt.sys_pk HAVING saldo>0 
+					  )>0  AND ifnull(rrp.`status`,0)=1"
+
+			// vigentes="SELECT COUNT(*) FROM rr_plan_mensual rrp 
+			// where (select ifnull(SUM(ROUND((rr1.importe -  "+replace(@sql_descuento,"rr.","rr1.")+"+
+			//  "+replace(@sql_recargo,"rr.","rr1.")+")-ifnull(rr1.pagos,0),4)),0) saldo
+			//         FROM rr_plan_mensual_cardex rr1
+			//         WHERE DATE(rr1.vencimiento)>DATE(NOW()) AND rrp.sys_pk=rr1.ref_plan AND rrp.ref_tipo=rrt.sys_pk HAVING saldo>0 
+			// 		  )>0  AND ifnull(rrp.`status`,0)=1"
+			vigentes="SELECT COUNT(*) FROM rr_plan_mensual rr WHERE ifnull(rr.`status`,0)=1 AND rr.ref_tipo=rrt.sys_pk"
+
+	@sql_vigentes_con_vencidos="SELECT rrt.*,
+	("+vencidos+")vencidos,
+	("+vigentes+")vigentes,
+	("+saldosvencido+")saldovencido,
+	("+saldototal+")saldototal
+ 	FROM rr_tipo_plan_mensual  rrt GROUP BY rrt.sys_pk"
+ 	
+ // do rise_error(00,saldototal)
+ 	/////////******************************
+ 	saldototal_detail="SELECT ifnull(SUM(ROUND((rr1.importe - "+replace(@sql_descuento,"rr.","rr1.")+" + "+replace(@sql_recargo,"rr.","rr1.")+" )-ifnull(rr1.pagos,0),4)),0) saldo
+								FROM rr_plan_mensual_cardex rr1 INNER join rr_plan_mensual rrp on rr1.ref_plan=rrp.sys_pk WHERE rr1.ref_plan=rr.sys_pk "
+
+	saldosvencido_detail="SELECT COUNT(*)  FROM rr_plan_mensual_cardex rc WHERE rc.vencimiento<=NOW() AND rc.ref_plan=rr.sys_pk)vencidos,
+						(SELECT ifnull(SUM(ROUND((rr1.importe - "+replace(@sql_descuento,"rr.","rr1.")+" + "+replace(@sql_recargo,"rr.","rr1.")+" )-ifnull(rr1.pagos,0),4)),0) saldo
+								FROM rr_plan_mensual_cardex rr1 INNER join rr_plan_mensual rrp on rr1.ref_plan=rrp.sys_pk 
+								WHERE rr1.ref_plan=rr.sys_pk AND DATE(rr1.vencimiento)<=DATE(NOW())"
+
+	countall="(SELECT COUNT(*) FROM rr_plan_mensual_cardex rc where rc.ref_plan=rr.sys_pk)"
+	sql_vencidos_detail="SELECT rr.*,
+	DATE_FORMAT(rr.contratacion,'%Y-%m-%d')fcontratacion,
+	(SELECT DATE_FORMAT(rc.fecha_pago,'%Y-%m-%d') FROM rr_plan_mensual_cardex rc where rc.ref_plan=rr.sys_pk ORDER BY rc.sys_dtcreated DESC LIMIT 1)ultpago,
+	(SELECT DATE_FORMAT(rc.vencimiento,'%Y-%m-%d') FROM rr_plan_mensual_cardex rc where rc.ref_plan=rr.sys_pk ORDER BY rc.sys_dtcreated asc LIMIT 1)primervencimiento,
+	(SELECT convert(concat("+countall+"-COUNT(*),'/',"+countall+"),char) FROM rr_plan_mensual_cardex rc where rc.ref_plan=rr.sys_pk AND ifnull(rc.pagos,0)=0)numultpagadas
+	,rrt.nombre,CONCAT(SUBSTRING(ifnull(c.Nombre,''),1,20),' ',SUBSTRING(ifnull(rr.clave1,''),1,10),' ',SUBSTRING(ifnull(rr.clave2,''),1,10),' ',SUBSTRING(ifnull(rr.clave3,''),1,10),' ',SUBSTRING(ifnull(rr.clave4,''),1,10),' ',SUBSTRING(ifnull(rr.clave5,''),1,10)) cliente,
+	("+saldosvencido_detail+")saldovencido,
+	("+saldototal_detail+")saldototal
+ 	FROM  rr_plan_mensual rr
+	INNER JOIN rr_tipo_plan_mensual rrt ON rr.ref_tipo=rrt.sys_pk
+	INNER JOIN cliente c ON rr.ref_cliente=c.Sys_PK
+	WHERE IFNULL(rr.`status`,0)=1 AND rr.ref_tipo=@_type HAVING saldovencido>0 ORDER BY rr.sys_dtcreated,saldovencido desc"
+
+	sql_vigentes_sin_vencidos="SELECT rr.*,
+	DATE_FORMAT(rr.contratacion,'%Y-%m-%d')fcontratacion,
+	(SELECT DATE_FORMAT(rc.fecha_pago,'%Y-%m-%d') FROM rr_plan_mensual_cardex rc where rc.ref_plan=rr.sys_pk ORDER BY rc.sys_dtcreated DESC LIMIT 1)ultpago,
+	(SELECT DATE_FORMAT(rc.vencimiento,'%Y-%m-%d') FROM rr_plan_mensual_cardex rc where rc.ref_plan=rr.sys_pk ORDER BY rc.sys_dtcreated asc LIMIT 1)primervencimiento,
+	(SELECT format(concat(COUNT(*),'/',(SELECT COUNT(*) FROM rr_plan_mensual_cardex rc where rc.ref_plan=rr.sys_pk)),'') FROM rr_plan_mensual_cardex rc where rc.ref_plan=rr.sys_pk AND ifnull(rc.pagos,0)=0)numultpagadas
+	,rrt.nombre,CONCAT(SUBSTRING(ifnull(c.Nombre,''),1,20),' ',SUBSTRING(ifnull(rr.clave1,''),1,10),' ',SUBSTRING(ifnull(rr.clave2,''),1,10),' ',SUBSTRING(ifnull(rr.clave3,''),1,10),' ',SUBSTRING(ifnull(rr.clave4,''),1,10),' ',SUBSTRING(ifnull(rr.clave5,''),1,10)) cliente,
+	(SELECT COUNT(*)  FROM rr_plan_mensual_cardex rc WHERE rc.vencimiento<=NOW() AND rc.ref_plan=rr.sys_pk)vencidos,
+	0 saldovencido,("+saldototal_detail+")saldototal
+	FROM  rr_plan_mensual rr
+	INNER JOIN rr_tipo_plan_mensual rrt ON rr.ref_tipo=rrt.sys_pk
+	INNER JOIN cliente c ON rr.ref_cliente=c.Sys_PK 
+	WHERE IFNULL(rr.`status`,0)=1 AND rr.ref_tipo=@_type HAVING vencidos=0 ORDER BY rr.sys_dtcreated desc"
+
+	@list_query_detail="SELECT * FROM("+sql_vencidos_detail+")a
+					"//UNION all
+					//SELECT * FROM("+sql_vigentes_sin_vencidos+")c
+					//do rise_error(00,sql_vigentes_sin_vencidos)
+
+
+	@pagos="SELECT rr.sys_pk,rr.sys_guid,rr.sys_dtcreated,rr.sys_timestamp,rr.formapago claveformapago,rr.importe,rr.divisa,
+							DATE_FORMAT(rr.fecha,'%Y-%m-%d')fecha,rr.usuario,DATE_FORMAT(rr.fecha_factura,'%Y-%m-%d')fecha_factura,
+							rr.id_factura,rr.referencia,rr.notas,rr.ref_plan,
+							ifnull((SELECT rf.valor FROM rr_formapago rf WHERE rf.clave=rr.formapago LIMIT 1),rr.formapago) formapago
+							FROM rr_plan_mensual_pago rr WHERE rr.fecha between @_finicio and @_ffin  ORDER BY rr.sys_dtcreated desc"
+	report.list::&db, &params
+	{
+		return @null
+	}
+	report.read::&db,&params
+	{
+		switch @@(params,"_entity_id")
+		{
+			case "cobranza"
+			{
+				new obj{@"_type":@@(params,"_type")}
+
+				if parse.bool(@@(params,"_detail"))
+				{
+					params<"_entity_id">:@@(params,"_type")
+					params<"_entities_type">:"rr_tipo_plan_mensual"
+					new data
+					{
+						@"planesvencidos*":dbr.list(db,@list_query_detail,obj)
+						@"tipoplan*":entity.read(db,params)
+					}
+					return data 
+				}
+				else
+				{
+					return dbr.list(db,@sql_vigentes_con_vencidos,@null)
+				}
+				
+			}
+			case "ingresos"
+			{
+
+				if @@(params,"_finicio")!="" && @@(params,"_ffin")!=""
+				{
+					return dbr.list(db,@pagos,params)
+				}
+				else
+				{
+					ref l=list.create()
+					new obj{@"sys_pk":0}
+					do list.add(l,obj)
+					return l
+				}
+			}
+		}
+		return entity.read(db,params)
+	}
+
+	point @list	to report.list
+	point @read to report.read
+}

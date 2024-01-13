@@ -1,0 +1,73 @@
+#include "dkli.dkh"
+#!
+module "config"
+{
+	if not(isset("@http_context")) { ref @http_context = @@(@crud_context,"&http") }
+	
+	//* ======================================== [ CONSTANTS ]
+
+	protocol = ifstr(parse.bool(@@(@http_context,"request/headers/HTTPS")),"https","http")
+	host = @@(@http_context,"request/headers/HTTP_HOST")
+	//link del icono home de la barra de navegación
+	@icon_home = protocol + "://" + host + "/icons/home.icon.png"
+	if not(file.exists(@icon_home)) { @icon_home = "https://ws.induxsoft.net/icons/home.icon.png" }
+	//link del icono setting de la barra de navegacion
+	@icon_setting = protocol + "://" + host + "/icons/settings.icon.png"
+	//lenguaje por default que va colocado en el contenido html
+	@lang = "es-MX"
+	@path_root = ""
+	@path_web = ""
+	@path_absolute = @path_root + @path_web
+	
+	//ruta de la plantilla default que ejecuta el body, contenido del html
+    @template = @path_web + "_protected/default.htt"
+	//ruta de la plantilla que muestra cuando el ids esta vencido
+	//ruta del dk que ejecuta el renderizador
+	@default_render_template = @path_web + "_protected/default.dk"
+
+	@__getParameterOutputType = "_output"
+
+	@url_origin = "https://ws.induxsoft.net/"
+	@url_ws = "https://api.induxsoft.net/workspaces/"
+	@__entities_first = "rr_plan_mensual"
+
+	@path_modules = path.concat(@path_web,"_modules")
+	@path_common = path.concat(@path_modules,"_common")
+	@path_list_common = path.concat(@path_common,"list.dk")
+
+	@path_files = path.concat(@path_absolute,"_files")
+	@path_filesql = path.concat(@path_absolute,"_sql/globalvar.sql")
+	@path_files_rr = path.concat(@path_files,"RecuRent")
+	@path_files_logs = path.concat(@path_files,"_logs")
+	@path_files_csv = path.concat(@path_files,"_csv")
+	
+	@rr_clave_anticipo = 0
+	@rr_clave_cuota_apertura = 1
+	@rr_clave_mensualidad = 3
+	@rr_clave_cuota_renovacion = 2
+	@rr_clave_otros = 4
+
+	@isadmin = @false
+	@isoperador = @false
+
+	@name_file_importar = "importar-recurent.csv"
+
+	@svc_file_upload = "/!/recurent/_services/?_svc=upload-file"
+	@svc_file_download = "/!/recurent/_services/?_svc=download-file"
+
+	//* ======================================== [ _STATIC RESOURCES ]
+	// Archivo para importaciones (.csv) de ejemplo.
+	@file_rr_ex_download = "/$/recurent/files/RecuRent/importar-recurent.csv"
+
+	//* ======================================== [ _PACKAGE ]
+	// Reportes
+	@RPT_COBRANZA = "/!/recurent/reports/cobranza/"
+	@RPT_INGRESOS = "/!/recurent/reports/ingresos/"
+
+	@RR_PLAN_MENSUAL = "/!/recurent/rr_plan_mensual/"
+	@RR_PLAN_MENSUAL_CARDEX = "/!/recurent/rr_plan_mensual_cardex/"
+	@RR_PLAN_MENSUAL_PAGO = "/!/recurent/rr_plan_mensual_pago/"
+	@RR_TIPO_MOVIMIENTO = "/!/recurent/rr_tipo_movimiento/"
+	@RR_TIPO_PLAN_MENSUAL = "/!/recurent/rr_tipo_plan_mensual/"
+	@RR_SETTINGS = "/!/recurent/setting/"
+}

@@ -1,0 +1,112 @@
+#include "dkli.dkh"
+#!
+module "list"
+{
+	#include "functions.dkh"
+	#include "serialize.dkh"
+	#include "dbr.dkh"
+	do @context.begin(@crud_context)
+	ref @http_context=@("&http")
+	#include "website.dkl"
+	include @path_list_common
+
+	error=@("$error/message")
+	cell_link_func::&params, &row, &cell
+	{
+		new headers
+        {
+            @"style":"position: sticky !important;top:0 !important;background-color:#fff;"
+        }
+        if @@(cell,"element")=="th"{cell<"attributes*">:headers}
+        if @@(cell,"cell_type")!="data" &&  @@(cell,"cell_type")!="unknow" { return }
+        if @@(cell,"column")=="_actions"
+        {
+        	id=@@(row,"#id")
+        	
+        	if not(@isadmin){return}
+        	liedit=ftext('<li class="d-flex align-items-center gap-2 p-2">
+                                <a id="btnEditar" href="#" onclick="view.editConceptos(#<id>,\'#<@@(row,\'const\')>\')" class="text-decoration-none text-secondary">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#888" class="bi bi-pencil" viewBox="0 0 16 16">
+                                        <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/>
+                                    </svg>
+                                    Editar
+                                </a>
+                            </li>')
+        	lidelete=ftext('<li class="d-flex align-items-center gap-2 p-2">
+                                <a onclick="model.deleteEntity(#<@@(row,"id")>,event,\'#<@_entity_type>\')" href="#" id="btnEliminar" class="text-decoration-none text-secondary">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#888" class="bi bi-trash" viewBox="0 0 16 16">
+                                        <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
+                                        <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
+                                    </svg>
+                                    Eliminar
+                                </a>
+                            </li>')
+
+        	if id==0 || id==1 || id==2 || id==3 || id==4{lidelete=""}
+
+        	cell<"text">:ftext('
+                <div class="btn-group" role="group" aria-label="Button group with nested dropdown">
+                    <div class="btn-group" role="group">
+                        <button id="btnGroupDrop1" type="button" onclick="event.stopPropagation()" class="btn btn-sm btn-light dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                            Opciones
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="btnGroupDrop1">
+                        	#<liedit>
+                        	#<lidelete>
+                        </ul>
+                    </div>
+                </div>
+            ')
+        }
+	}
+	do check_permissions_administrative(@("&database"))
+	#$
+	div(class="container-lg pt-1 ps-3 pe-3" style="background-color:#F5F5F5; min-height:94%;" id="container-ventas")
+	{
+		#!
+		#include "../modals.dkl"
+		#$
+		div(class="p-4 bg-white border-bottom" id="container-card" style="min-height:80vh")
+		{
+			div(class="d-flex align-items-center justify-content-end")
+			{
+				span(class="cgray" onclick="view.redirec('#<@RR_PLAN_MENSUAL>')")
+				{
+					$'<svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" fill="currentColor" class="bi bi-x-lg" viewBox="0 0 16 16">
+						<path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854Z"/>
+					</svg>'
+				}
+			}
+			
+			div(class="#<ifstr(error!='','alert alert-danger','')>"){"#<error>"}
+			#!
+			if @isadmin
+			{
+				#$
+				hr(style="margin:10px"){""}
+				button(class="btn btn-primary btn-sm" id="btnaddconceptos" onclick="view.showModal('#modalconceptos')"){"Agregar"}
+			}
+			
+			#!
+			@_entity_type="./rr_tipo_movimiento/"
+			@show_btn_add=@false
+			new @table_definition
+			{
+				@"datatable*":@("&.")
+            	@"value_field":"id"
+            	member @"columns"
+            	{
+            		member @"const"
+            		{
+            			@"caption":"Descripción"
+            		}
+            		member @"_actions"
+            		{
+            			@"caption":""
+            		}
+            	}
+			}
+			do tableGlobalDefinition()
+		}
+	}
+}

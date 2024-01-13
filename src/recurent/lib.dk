@@ -1,0 +1,652 @@
+#include "dkli.dkh"
+#!
+module "lib.dk"
+{
+	#include "functions.dkh"
+	#include "serialize.dkh"
+	#include "webcl.dkh"
+	#include "cookies.dkl"
+	#include "config.dk"
+
+	#include "ws.api.dkl"
+	#!
+	api_base_service::
+    {
+        expose responseJSONdata
+
+        new responseJSONdata
+        {
+            @"success":@true
+        }
+        
+        that
+        
+        @http_context<"response/headers/Content-Type">:"application/json;charset=utf-8"
+        @http_context<"response/output">:"text"
+        @http_context<"response/text">: to.json(responseJSONdata)
+    }
+
+	#!
+	current_url::root
+	{
+
+		host=@@(@http_context,"request/headers/HTTP_HOST")
+		protocol=ifstr(parse.bool(@@(@http_context,"request/headers/HTTPS")),"https","http")
+		path=replace(field.dstr(@http_context,"request/headers/request_uri","/"),"\\","/")
+
+	  if root{path=list.str(split(path,"?"),0)}
+
+		return protocol+"://"+path.concat(host,path)
+	}
+
+	#!
+	getDataTipoPlan::&db,tipo
+	{
+		new p{@"tipo":tipo}
+		return dbr.rec(db,"select * from rr_tipo_plan_mensual where sys_pk=@tipo",p)
+	}
+
+	#!
+	dataWebHook::event,&data
+	{
+		new newdata
+		{
+			@"evento":event
+			@"usuario":@@(@http_context,"session/user/name")
+			@"idusuario":@@(@http_context,"session/user/uid")
+		}
+		new empty{}
+		ref fields=field.dobj(data,"fields",empty)
+		ref lfields=list.create_from_fields(fields)
+
+		for i=0;i<@count(lfields)
+		{
+			key=list.str(lfields,i)
+			if field.typeof(fields,key)==3{newdata<key+"*">:@@(fields,"&"+key)}
+			else{newdata<key>:@@(fields,key)}
+		}
+		do field.remove(data,"fields")
+
+		switch event
+		{
+			case "pago"{newdata<"pago*">:@@(data,"&pago")}
+			case "quita"{newdata<"pago*">:@@(data,"&pago")}
+			case "cargo"{newdata<"cargo*">:@@(data,"&cargo")}
+			case "cambio_cliente"{}
+			case "cambio_mensualidad"{}
+			default{newdata<"plan*">:data}
+		}
+		return newdata
+	}
+
+	#!
+
+	invoke_webhook::url,event,&data
+	{
+
+		if trim(str(url))==""{return}
+		// do file.wtext("/usr/dkl_apps/web/rr.ws.induxsoft.net/test/aqui.json",to.json(data))
+		new headers{@"Content-Type":"application/json;charset=utf-8"}
+		
+		ref newdata=dataWebHook(event,data)
+
+		// do file.wtext("/usr/dkl_apps/web/rr.ws.induxsoft.net/test/newdata.json",to.json(newdata))
+
+		res =http.request(url,"POST",headers,to.json(newdata))
+		ref result=from.json(res)
+		// do file.wtext("/usr/dkl_apps/web/rr.ws.induxsoft.net/test/result.json",to.json(result))
+		if not(@@(result,"success")){do rise_error(99,@@(result,"$message"))}
+
+		exception
+		{
+			// do file.wtext("/usr/dkl_apps/web/rr.ws.induxsoft.net/test/error.json",last_error())
+		}
+
+		return @@(result,"&data")
+	}
+	@vencimiento_days_prontopago="date_add(rr.vencimiento,INTERVAL -IFNULL(rrp.dias_pronto_pago,0) DAY)"
+	@vencimiento_days_pagotardio="date_add(rr.vencimiento,INTERVAL IFNULL(rrp.dias_pago_tardio,0) DAY)"
+
+	@sql_descuento="ifnull(if(NOW()<"+@vencimiento_days_prontopago+" ,if(ifnull(rr.pagos,0)=0 and (iFNULL(rr.recargo,0)=0 and IFNULL(rr.descuento,0)=0) and rr.tipo_movimiento=3, (rr.importe - rr.importe /(1+rrp.desc_pronto_pago/100)) +rrp.boni_pronto_pago,rr.descuento) ,0),0)"
+	@sql_recargo="ifnull(if(NOW()>date_add(date("+@vencimiento_days_pagotardio+"),INTERVAL if(date(NOW())=date(rr.vencimiento),1,0) day) , if(ifnull(rr.pagos,0)=0 and (iFNULL(rr.recargo,0)=0 and IFNULL(rr.descuento,0)=0) and rr.tipo_movimiento=3, (rr.importe * (1+rrp.cargo_retraso/100)-rr.importe)+rrp.cuota_retraso,rr.recargo) ,0),0)"
+	@use_transaction=@true
+	@use_transaction_global=@true
+	@sql_ultimo_fechavencimiento="SELECT date_format(DATE_ADD(rr.vencimiento, INTERVAL 1 MONTH),'%Y-%m-%d')ultimo_vencimiento
+		 			FROM rr_plan_mensual_cardex rr INNER JOIN rr_plan_mensual rrp ON rr.ref_plan=rrp.sys_pk where rr.ref_plan=@_plan ORDER BY rr.vencimiento DESC limit 1"
+
+	aplicar_pago::&db,plan,pkpago,fechapago
+	{
+		new param
+		{
+			@"plan":plan
+			@"pkpago":pkpago
+			@"fecha_pago":fechapago
+		}
+		sql="SELECT * FROM(SELECT rr.sys_pk,rr.ref_plan,rr.tipo_movimiento,rr.concepto,rr.importe,rr.recargo,
+								 rr.descuento,
+								 rrp.desc_pronto_pago,
+								 rrp.boni_pronto_pago,
+								 rrp.cargo_retraso,
+								 rrp.cuota_retraso,
+							 round(ifnull(rr.pagos,0),4) pagos,
+							 (ROUND((rr.importe - "+@sql_descuento+" + "+@sql_recargo+"),4)
+								 - round(ifnull(rr.pagos,0),4) )
+							 		saldo,
+								 rr.vencimiento<NOW() AS vencido
+							 FROM rr_plan_mensual_cardex rr INNER JOIN rr_plan_mensual rrp ON rr.ref_plan=rrp.sys_pk where ifnull(rr.sys_deleted,0)=0 
+							 and rr.ref_plan=@plan  
+							 ORDER BY rr.vencimiento, rr.sys_pk)a WHERE a.saldo>0;"
+
+		resto=dbr.num(db,"SELECT rr.importe FROM rr_plan_mensual_pago rr WHERE rr.sys_pk=@pkpago",param)
+		
+		ref xsaldar=dbr.list(db,sql,param)
+		new rr_plan_mensual_cardex{}
+
+		if @use_transaction{do dbr.begin(db)}
+
+			for i=0;i<@count(xsaldar)
+			{
+				ref itm=@item(xsaldar,i)
+				descuento=@@(itm,"#descuento")
+				recargo=@@(itm,"#recargo")
+				pagos=@@(itm,"#pagos")
+
+				using p{@"sys_pk":@@(itm,"sys_pk")}
+				if @@(itm,"#descuento")==0 && @@(itm,"#recargo")==0 && @@(itm,"#tipo_movimiento")==3
+				{
+					
+					if @@(itm,"#vencido")
+					{
+						
+						if @@(itm,"#cargo_retraso")>0
+						{
+							res=(@@(itm,"#importe") * (1+@@(itm,"#cargo_retraso")/100)-@@(itm,"#importe"))+ @@(itm,"#cuota_retraso")
+						}
+						else{res=0}
+						
+						using rr_plan_mensual_cardex
+						{
+							@"recargo": res
+						}
+						if field.exist(rr_plan_mensual_cardex,"descuento"){do field.remove(rr_plan_mensual_cardex,"descuento")}
+						recargo=res
+					}
+					else
+					{
+						if @@(itm,"#desc_pronto_pago")>0
+						{
+							res=(@@(itm,"#importe") - (@@(itm,"#importe") /(1+@@(itm,"#desc_pronto_pago")/100))) + @@(itm,"#boni_pronto_pago")
+						}else{res=0}
+
+						using rr_plan_mensual_cardex
+						{
+							@"descuento": res
+						}
+						if field.exist(rr_plan_mensual_cardex,"recargo"){do field.remove(rr_plan_mensual_cardex,"recargo")}
+						descuento=res
+					}
+					do dbr.update(db,"rr_plan_mensual_cardex",rr_plan_mensual_cardex,"sys_pk=@sys_pk",p)
+				}
+				saldo=@@(itm,"#saldo") //- descuento + recargo
+
+				if resto<saldo
+				{
+					aplicar=resto
+					resto=0
+				}
+				else
+				{
+					aplicar=saldo
+					resto=resto - aplicar
+				}
+				//insertar
+				new cardex_pago
+				{
+					@"fecha*":now() 
+					@"ref_cardex":@@(itm,"sys_pk")
+					@"ref_pago":pkpago
+					@"monto":aplicar
+				}
+				using p
+				{
+					@"pagos":aplicar
+					@"fecha_pago":@@(param,"fecha_pago")//now()
+				}
+				do dbr.execute(db,"UPDATE rr_plan_mensual_cardex SET pagos=ifnull(pagos,0)+@pagos, fecha_pago=@fecha_pago where sys_pk=@sys_pk;",p)
+				do dbr.insert(db,"rr_plan_mensual_cardex_pago",cardex_pago)
+
+				if resto<.01{break}
+			}
+			module "verify_saldo"
+			{
+				sql_saldo="SELECT SUM(
+					(ROUND((rr.importe - "+@sql_descuento+" + "+@sql_recargo+"),4)
+								 - round(ifnull(rr.pagos,0),4) ))
+							 		saldo
+					 FROM rr_plan_mensual_cardex rr INNER JOIN rr_plan_mensual rrp ON rr.ref_plan=rrp.sys_pk where ifnull(rr.sys_deleted,0)=0 
+					 and rr.ref_plan=@plan  
+					 ORDER BY rr.vencimiento, rr.sys_pk;"
+				saldototal=dbr.num(db,sql_saldo,param)
+
+
+				if saldototal<0
+				{
+					do rise_error(99,"Monto de pago excesivo, se supera el remanente del plan")
+				}
+
+				if saldototal<0.01
+				{
+					using param
+					{
+						@"status":3
+					}
+					isautorenovable=dbr.num(db,"SELECT ifnull(rr.autorenovable,0) FROM rr_plan_mensual rr WHERE rr.sys_pk=@plan",param)
+					if isautorenovable
+					{
+						ref data=dbr.rec(db,"SELECT rr.meses,rr.mensualidad,rr.cuota_renovacion,DATE_FORMAT(rr.inicio,'%Y-%m-%d')inicio,DATE_FORMAT(rr.fin,'%Y-%m-%d')fin,rr.monto FROM rr_plan_mensual rr WHERE rr.sys_pk=@plan",param)
+						if not(isnull(data))
+						{
+							data<"historial">:@true
+							using param{@"_entity_id":plan}
+							@table_name="rr_plan_mensual"
+
+							@read_query="SELECT #<@sys_fields>,rr.ref_tipo,date_format(rr.contratacion,'%Y-%m-%d')contratacion,
+								rr.mensualidad,rr.comision,rr.anticipo,rr.monto,rr.renovable,rr.autorenovable,date_format(rr.inicio,'%Y-%m-%d')inicio,date_format(rr.fin,'%Y-%m-%d')fin,rr.ref_cliente,rr.id_contrato,
+								rr.objeto_contrato,rr.cuota_renovacion,rr.desc_pronto_pago,rr.boni_pronto_pago,rr.meses,rr.cargo_retraso,rr.cuota_retraso,
+								rr.divisa,rr.txt_clave1,rr.txt_clave2,rr.txt_clave3,rr.txt_clave4,rr.txt_clave5,rr.clave1,rr.clave2,rr.clave3,rr.clave4,rr.clave5,
+								rr.req_clave1,rr.req_clave2,rr.req_clave3,rr.req_clave4,rr.req_clave5,
+								rr.email,rr.email1,rr.telefono,rr.telefono1,rr.`status` ,rr.dias_pronto_pago,rr.dias_pago_tardio
+								FROM #<@table_name> rr where #<@keyfield>=@_entity_id limit 1;"
+								@use_transaction=@false
+							ref d=activarPlan(db,param,data)
+						}
+					}
+					else
+					{
+						do dbr.execute(db,"update rr_plan_mensual set status=@status where sys_pk=@plan",param)	
+					}
+					
+				}
+			}
+		if @use_transaction{do dbr.commit(db)}
+
+		exception
+		{
+			if @use_transaction{if dbr.in_transaction(db){do dbr.rollback(db)}}
+			do rise_error(99,last_error())
+		}
+	}
+	#!
+	activarPlan::&db,&params,&data
+	{
+		do genHistorial(db,@@(params,"_entity_id"),data)
+		params<"activar">:@true
+		params<"renovacion">:@true
+		ref rrdata=plan_action(db,params)
+
+		//invocar el webhook de renovación *************************
+		ref tipo=getDataTipoPlan(db,@@(rrdata,"$ref_tipo"))
+		do invoke_webhook(@@(tipo,"$webhook"),"renovacion",rrdata)
+		//***************************
+		return rrdata
+	}
+	addFieldsSystem::&data
+	{
+		if isnull(data){return}
+
+		using data
+		{
+			@"sys_dtcreated*":now()
+			@"sys_timestamp*":now()
+		}
+	}
+	plan_action::&db,&params
+	{
+
+		ref data=entity.read(db,params)
+		if parse.bool(@@(params,"onlydata")){return data}
+
+		ids=@@(@http_context,"$session/user/ids")
+		uid=@@(@http_context,"$session/user/uid")
+		name=@@(@http_context,"$session/user/name")
+
+		ismodify=@false
+		evento=""
+		if @use_transaction {do dbr.begin(db)}
+
+			
+			if parse.bool(@@(params,"#activar"))
+			{	
+				isrenovacion=parse.bool(@@(params,"renovacion"))
+				new dataplan
+				{
+					@"usuario_activa":cut(name,50)
+					@"fecha_activacion*":now()
+					@"status":1
+				}
+				do dbr.update(db,"rr_plan_mensual",dataplan,"sys_pk=@sys_pk",data)
+
+				meses=@@(data,"#meses")
+
+				hashanticipo=@@(data,"#anticipo")>0
+				hashcuotaapertura=@@(data,"#comision")>0
+				hashcuotarenovacion=@@(data,"#cuota_renovacion")>0
+				
+				new rr_plan_mensual_cardex
+				{
+					@"ref_plan":@@(data,"sys_pk")
+					@"concepto" :""
+					@"importe" :@@(data,"#mensualidad")
+				}
+				do addFieldsSystem(rr_plan_mensual_cardex)
+				if hashcuotaapertura && not(isrenovacion)
+				{
+					using rr_plan_mensual_cardex
+					{
+						@"tipo_movimiento":@rr_clave_cuota_apertura
+						@"concepto":dbr.str(db,"SELECT const from rr_tipo_movimiento WHERE id="+str(@rr_clave_cuota_apertura),@null)
+						@"sys_guid":uuid()
+						@"vencimiento*":str2dt(@@(data,"inicio"))
+						@"importe" :@@(data,"#comision")
+					}
+					do dbr.insert(db,"rr_plan_mensual_cardex",rr_plan_mensual_cardex)
+				}
+				else if isrenovacion && hashcuotarenovacion
+				{
+					using rr_plan_mensual_cardex
+					{
+						@"tipo_movimiento":@rr_clave_cuota_renovacion
+						@"concepto":dbr.str(db,"SELECT const from rr_tipo_movimiento WHERE id="+str(@rr_clave_cuota_renovacion),@null)
+						@"sys_guid":uuid()
+						@"vencimiento*":str2dt(@@(data,"inicio"))
+						@"importe" :@@(data,"#cuota_renovacion")
+					}
+					do dbr.insert(db,"rr_plan_mensual_cardex",rr_plan_mensual_cardex)
+				}
+				if hashanticipo
+				{
+					using rr_plan_mensual_cardex
+					{
+						@"tipo_movimiento":@rr_clave_anticipo
+						@"concepto":dbr.str(db,"SELECT const from rr_tipo_movimiento WHERE id="+str(@rr_clave_anticipo),@null)
+						@"sys_guid":uuid()
+						@"vencimiento*":str2dt(@@(data,"inicio"))
+						@"importe" :@@(data,"#anticipo")
+					}
+					do dbr.insert(db,"rr_plan_mensual_cardex",rr_plan_mensual_cardex)
+				}
+				
+				for i=0;i<meses
+				{
+					vect=@@(data,"inicio")
+					new dt
+					{
+						@"f":vect
+						@"i":i
+					}
+					vencimiento=dbr.str(db,"SELECT ADDDATE(@f,INTERVAL @i month)",dt)
+
+					txt=str(i+1) +" de "+str(meses)
+					using rr_plan_mensual_cardex
+					{
+						@"importe" :@@(data,"#mensualidad")
+						@"sys_guid":uuid()
+						@"vencimiento":vencimiento
+						@"tipo_movimiento":@rr_clave_mensualidad
+						@"concepto":dbr.str(db,"SELECT const from rr_tipo_movimiento WHERE id="+str(@rr_clave_mensualidad),@null) + " "+txt
+					}
+					do dbr.insert(db,"rr_plan_mensual_cardex",rr_plan_mensual_cardex)
+				}
+
+				ismodify=@true
+				evento="activacion"
+			}
+			else if parse.bool(@@(params,"#cancelar"))
+			{
+				new dataplan
+				{
+					@"usuario_cancela":cut(name,50)
+					@"fecha_cancelacion*":now()
+					@"status":2
+				}
+				do dbr.update(db,"rr_plan_mensual",dataplan,"sys_pk=@sys_pk",data)
+				ismodify=@true
+				evento="cancelacion"
+			}
+		if @use_transaction{do dbr.commit(db)}
+
+		exception
+		{
+			if @use_transaction{if dbr.in_transaction(db){do dbr.rollback(db)}}
+			do rise_error(99,last_error())
+		}
+
+		if ismodify
+		{
+			ref data=entity.read(db,params)
+
+			//invocar el webhook de activación y cancelación *************************
+			ref tipo=getDataTipoPlan(db,@@(data,"$ref_tipo"))
+			do invoke_webhook(@@(tipo,"$webhook"),evento,data)
+			//****************************************************
+		}
+
+		return data
+	}
+	genHistorial::&db,plan,&data
+	{
+		new p
+		{
+			@"plan":plan
+			@"_plan":plan
+		}
+		rr_plan_mensual_cardex_pago="SELECT rrp.* FROM rr_plan_mensual_cardex_pago rrp INNER join rr_plan_mensual_cardex rrc ON rrp.ref_cardex=rrc.sys_pk
+									WHERE rrc.ref_plan=@plan"
+		rr_plan_mensual_cardex="SELECT  rr.*,ROUND((rr.importe - "+@sql_descuento+" + "+@sql_recargo+" ),4)
+			 		importe_total,
+			 (ROUND((rr.importe - "+@sql_descuento+" + "+@sql_recargo+" ),4)
+				 - round(ifnull(rr.pagos,0),4) )
+			 		saldo
+		 FROM rr_plan_mensual_cardex rr INNER JOIN rr_plan_mensual rrp ON rr.ref_plan=rrp.sys_pk where rr.ref_plan=@plan "
+
+		rr_plan_mensual_pago="SELECT * FROM rr_plan_mensual_pago rr WHERE rr.ref_plan=@plan "
+
+		if @use_transaction{do dbr.begin(db)}
+			ref cardex_pago=dbr.list(db,rr_plan_mensual_cardex_pago,p)
+			ref mensual_cardex=dbr.list(db,rr_plan_mensual_cardex,p)
+			ref mensual_pago=dbr.list(db,rr_plan_mensual_pago,p)
+
+			new rr_plan_mensual_historial
+			{
+				@"ref_plan":@@(p,"plan")
+				@"fecha*":now()
+				@"mensual_cardex":to.json(mensual_cardex)
+				@"mensual_pago":to.json(mensual_pago)
+				@"cardex_pago":to.json(cardex_pago)
+			}
+			do dbr.insert(db,"rr_plan_mensual_historial",rr_plan_mensual_historial)
+
+			//vaciar tablas
+			do dbr.execute(db,"delete rrp FROM rr_plan_mensual_cardex_pago rrp INNER join rr_plan_mensual_cardex rrc ON rrp.ref_cardex=rrc.sys_pk
+									WHERE rrc.ref_plan=@plan ",p)
+			do dbr.execute(db,"DELETE rr FROM rr_plan_mensual_pago rr WHERE rr.ref_plan=@plan",p)
+			do dbr.execute(db,"DELETE rr FROM rr_plan_mensual_cardex rr WHERE rr.ref_plan=@plan",p)
+
+			//actualizar plan
+
+			new dataplan
+			{
+				@"fecha_renovacion*":now()
+				@"inicio":@@(data,"inicio")//ifstr(!="",@@(data,"fecha"),dbr.str(db,@sql_ultimo_fechavencimiento,p))
+				@"fin":@@(data,"fin")
+				@"meses":@@(data,"meses")
+				@"cuota_renovacion":@@(data,"cuota_renovacion")
+				@"mensualidad":@@(data,"mensualidad")
+				@"monto":@@(data,"monto")
+				@"status":1
+			}
+			do dbr.update(db,"rr_plan_mensual",dataplan,"sys_pk=@plan",p)
+			
+		if @use_transaction{do dbr.commit(db)}
+
+		exception
+		{
+			if @use_transaction{if dbr.in_transaction(db){do dbr.rollback(db)}}
+			do rise_error(99,last_error())
+		}
+	}
+
+	recontruirSaldo::&db,&params
+	{
+		new p{@"plan":@@(params,"_entity_id")}
+
+		do dbr.execute(db,"DELETE rp FROM rr_plan_mensual_cardex_pago rp INNER JOIN rr_plan_mensual_cardex rc ON rp.ref_cardex=rc.sys_pk
+						where rc.ref_plan=@plan",p)
+
+		ref pagos=dbr.list(db,"SELECT rp.sys_pk,DATE_FORMAT(rp.fecha,'%Y-%m-%d')fecha FROM rr_plan_mensual_pago rp INNER JOIN rr_plan_mensual rr ON rp.ref_plan=rr.sys_pk
+				WHERE rr.sys_pk=@plan ORDER BY rp.sys_dtcreated asc",p)
+
+		do dbr.execute(db,"UPDATE  rr_plan_mensual_cardex rc SET rc.fecha_pago=NULL,rc.pagos=0 WHERE rc.ref_plan=@plan",p)
+
+		@use_transaction=@use_transaction_global
+
+		for i=0;i<@count(pagos)
+		{
+			ref itm=@item(pagos,i)
+			do aplicar_pago(db,@@(p,"plan"),@@(itm,"sys_pk"),@@(itm,"fecha"))
+		}
+
+		exception
+		{
+			do rise_error(99,last_error())
+		}
+	}
+	#!
+	textStatus::status
+	{
+		switch status
+		{
+			case 0{return "Borrador"}
+			case 1{return "Vigente"}
+			case 2{return "Cancelado"}
+			case 3{return "Cumplido"}
+		}
+	}
+	#!
+	genNavbarLink::
+	{
+		ref l=list.create()
+		@name=@@(@http_context,"request/get/namews")
+		@namews=list.str(split(cookie.get(@@(@http_context,"request/get/ws")),";"),0)
+
+		if @name!=""
+		{
+			do cookie.set(@@(@http_context,"request/get/ws"), @name)
+			@namews=list.str(split(cookie.get(@@(@http_context,"request/get/ws")),";"),0)
+		}
+		if @namews!=""
+		{
+			new link_rr_planws
+			{
+				@"target":@url_origin+@@(@http_context,"request/get/ws")+"/"
+				@"link":@namews
+				@"type":"Workspace"
+			}
+			do list.add(l,link_rr_planws)
+		}
+		new link_rr_plan
+		{
+			@"target":"/"+@@(@http_context,"request/get/ws")+"/"
+			@"link":"Planes"
+			@"type":"Planes"
+		}
+		do list.add(l,link_rr_plan)
+
+		if @@(@http_context,"request/get/_entity_id")!=""
+		{	
+			title=""
+			switch @@(@http_context,"request/get/_entities_type")
+			{
+				case "rr_plan_mensual"{title="Plan mensual"}
+				case "rr_tipo_plan_mensual"{title="Tipo plan"}
+				default{title=@@(@http_context,"request/get/_entities_type")}
+			}
+			new link_rr_plan_entity
+			{
+				@"target":"../"
+				@"link":title
+				@"type":title
+			}
+			do list.add(l,link_rr_plan_entity)
+		}
+		
+
+		@http_context<"session/address_workspaces*">:l
+	}
+	checkbd::&db
+	{
+		do dbr.str(db,"select VarValue from globalvar where VarName='rr_gpo_administradores' ",@null)
+		exception
+		{
+			if file.exists(@path_filesql)
+			{
+				do dbr.execute(db,file.rtext(@path_filesql),@null)
+			}
+		}
+	}
+
+	check_permissions_administrative::&db
+    {
+		do checkbd(db)
+    	admin_team=dbr.str(db,"select VarValue from globalvar where VarName='rr_gpo_administradores';",@null)
+		opera_team=dbr.str(db,"select VarValue from globalvar where VarName='rr_gpo_operadores';",@null)
+
+        ref user_info = @@(@http_context,"&session/user")
+        if isnull(user_info) { return @false}
+
+        // team member
+        ref memberships = field.dobj(user_info,"memberships", @null)
+        if isnull(memberships) { return @false }
+
+        ref user_teams = field.dobj(memberships,"teams", @null)
+
+		if not(admin_team == "") && admin_team != "owner" {
+			for i=0; i<list.count(user_teams)
+			{
+				user_team = list.str(user_teams,i)
+				if admin_team == user_team 
+				{ 
+					@isadmin = @true
+					return @true 
+				}
+			}
+		}
+		
+    	if not(opera_team == "") && opera_team != "all" {
+			for i=0; i<list.count(user_teams)
+			{
+				user_team = list.str(user_teams,i)
+				if opera_team == user_team 
+				{ 
+					@isoperador = @true
+					return @true 
+				}
+			}
+		}
+		
+        // is owner/administrator
+		if ws.api.ImOwner() {
+			@isadmin = @true
+			return @true
+		}
+
+		if admin_team != "" && opera_team != "" && not(@isadmin) && not(@isoperador)
+		{
+			do rise_error(00,"No tienes permiso para accer a la aplicación, comunicate con el administrador del Workspace")
+		}
+		
+        return @false
+    }
+
+	do genNavbarLink()
+}

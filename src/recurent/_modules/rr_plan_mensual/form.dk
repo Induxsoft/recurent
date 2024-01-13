@@ -1,0 +1,448 @@
+#include "dkli.dkh"
+#!
+module "form"
+{
+	#include "functions.dkh"
+	#include "serialize.dkh"
+	#include "uielements.dkl"
+	#include "dbr.dkh"
+	do @context.begin(@crud_context)
+
+	ref @http_context=@("&http")
+	#include "website.dkl"
+	error=@("$error/message")
+
+    new def_tipo_plan
+    {
+    	@"datatable*":dbr.list(@("&database"),"select sys_pk, nombre from rr_tipo_plan_mensual order by sys_pk desc;",@null)
+        @"id":"ref_tipo"
+        member "attributes"
+        {
+            @"class":"form-select form-select-sm"
+            @"name":"ref_tipo"
+        }
+        @"value_field":"sys_pk"
+        @"text_field":"nombre"
+        @"selected":@('./ref_tipo')
+    }
+    if @count(@@(def_tipo_plan,"&datatable"))<=0
+    {
+        using def_tipo_plan
+        {
+            @"first_text":" "
+            @"first_value":"@"
+        }
+    }
+    @editcliente=field.exist(@("&parameters"),"cedit")
+
+    new s{@"status":@("#./status")}
+    status=dbr.str(@("&database"),"select const from status_plan where id=@status limit 1",s)
+    if status==""{status="Borrador"}
+
+    using s{@"sys_pk":@("#./ref_cliente")}
+   	cliente=dbr.str(@("&database"),"select concat('[',codigo,'] ',nombre) from cliente where sys_pk=@sys_pk",s)
+
+   	@isnull=ifstr(@("#./sys_pk")>0,@false,@true)
+   	@isborrador=ifstr(@("#./status")>0,@false,@true)
+   	
+   	@uri=@("$parameters/uri")
+   	if @uri!=""{@uri=url_dcode(@uri)}
+
+   	do check_permissions_administrative(@("&database"))
+	#$
+	div(class="container-lg pt-1 ps-3 pe-3" style="background-color:#F5F5F5; min-height:94%;" id="container-plan")
+	{
+		#!
+		#include "../modals.dkl"
+		#$
+		div(class="p-4 bg-white border-bottom" id="container-card" style="min-height:80vh")
+		{
+			div(class="#<ifstr(error!='','alert alert-danger','')>"){"#<error>"}
+			div(class="d-flex justify-content-end")
+			{
+				div(class="columns" style="display: flow-root;")
+				{
+					b{"#<status>"}
+				}
+			}
+			nav(style="" )
+  			{
+  				div(class="nav nav-tabs" id="nav-tab" role="tablist")
+  				{
+  					a(class="nav-item nav-link active" id="nav-general-tab" "data-bs-toggle"="tab" href="#nav-general" role="tab" "aria-controls"="nav-general" "aria-selected"="false"){"General"}
+  					a(class="nav-item nav-link" id="nav-aviso-tab" "data-bs-toggle"="tab" href="#nav-aviso" role="tab" "aria-controls"="nav-aviso" "aria-selected"="false"){"Aviso"}
+  					a(class="nav-item nav-link " id="nav-config-tab" "data-bs-toggle"="tab" href="#nav-config" role="tab" "aria-controls"="nav-config" "aria-selected"="false"){"Configuración"}
+  				}
+  			}br{}
+  			form(method="POST" action="." onsubmit="return view.validate()" id="frm-plan")
+  			{
+  				div(class="tab-content " id="nav-tabContent" style="")
+	  			{
+	  				div(class="tab-pane fade show active" id="nav-general" role="tabpanel" "aria-labelledby"="nav-general-tab")
+	  				{
+	  					div(class="row")
+						{
+							div(class="col-lg-8")
+							{
+								label("for"="ref_tipo"){"Tipo plan:"}
+								// input(class="form-control form-control-sm" name="nombre" id="nombre" value="#<@('$./nombre')>" maxlength="50")
+								#!
+								do uie.dbSelect(def_tipo_plan)
+								#$
+							}
+							div(class="col-lg-4")
+							{
+								label("for"="id_contrato"){"Id contrato:"}
+								#!
+								idcontrato=ifstr(@('$./id_contrato')=='','<A>',@('$./id_contrato'))
+								#$
+								input(class="form-control form-control-sm" name="id_contrato" id="id_contrato" value="#<idcontrato>" maxlength="50")
+							}
+							div(class="col-lg-8")
+							{
+								label("for"="ref_cliente"){"Cliente:"}
+								div(class="d-flex")
+								{
+									input(type="hidden" class="form-control form-control-sm" name="ref_cliente" value="#<@('$./ref_cliente')>" id="ref_cliente" readonly="true" maxlength="50")
+									input(class="form-control form-control-sm" name="ref_cliente_text" data="#<@('$./ref_cliente')>" id="ref_cliente_text" readonly="true" value="#<cliente>" maxlength="50")
+									button(type="button" class="btn btn-primary btn-sm" id="btn-search-client" onclick="view.showModal('#modalclientes')"){$'Buscar'}
+								}
+								
+							}
+							div(class="col-lg-4")
+							{
+								label{"Fecha de contratación:"}
+								input(type="date" class="form-control form-control-sm" value="#<date_str(now(),'yyyy-MM-dd')>" name="contratacion" id="contratacion")
+							}
+							div(class="col-lg-12")
+							{
+								label("for"="objeto_contrato"){"Objeto del contrato:"}
+								textarea(class="form-control form-control-sm" style="height: 63px;" name="objeto_contrato" id="objeto_contrato"){"#<@('$./objeto_contrato')>"}
+							}
+						}
+						
+						hr{}
+						div(class="row")
+						{
+							div(class="col-lg-6")
+							{
+								div(class="columns")
+								{
+									// b{"Fechas Inicio - Fin"}
+									#!
+									inicio=date_str(now(),'yyyy-MM-dd')
+									fin=inicio
+									if @("$./inicio")!=""
+									{
+										inicio=date_str(str2dt(@("$./inicio")),"yyyy-MM-dd")
+										fin=date_str(str2dt(@("$./fin")),"yyyy-MM-dd")
+									}
+									#$
+									
+									div(class="col-lg-6")
+									{
+										label{"Primer vencimiento:"}
+										input(type="date" class="form-control form-control-sm" value="#<inicio>" name="inicio" id="inicio")
+									}
+									div(class="col-lg-6")
+									{
+										label{"Último vencimiento:"}
+										input(type="date" class="form-control form-control-sm" readonly="true" value="#<fin>" name="fin" id="fin")
+									}
+								}
+							}
+							div(class="col-lg-6")
+							{
+								b{"Datos del plan"}
+								table(class="table")
+								{
+									tbody(class="columns")
+									{
+									
+									tr(class="col-lg-6" id="dv-cuota_apertura"){$""}
+									tr(class="col-lg-6" id="dv-anticipo"){$""}
+									tr(class="col-lg-6" id="dv-meses"){$""}
+									tr(class="col-lg-6" id="dv-mensualidad"){$""}
+									tr(class="col-lg-6" id="dv-monto"){$""}
+								}
+								}
+								
+							}
+							
+						}
+						
+										
+						hr{}
+						// b{"Campos adicionales"}
+						#!
+						clave1=@("$./clave1")
+						clave2=@("$./clave2")
+						clave3=@("$./clave3")
+						clave4=@("$./clave4")
+						clave5=@("$./clave5")
+
+						new @claves{}
+						ref l=list.create()
+						if clave1!="" || parse.bool(@isborrador)
+						{
+							using @claves
+							{
+								@"clave1":clave1
+								@"caption":@("$./txt_clave1")
+								@"attributes":ifstr(@("#./req_clave1"),"required='true'","")
+							}
+							do list.add(l,@claves)
+						}
+						if clave2!="" || parse.bool(@isborrador)
+						{
+							using @claves2
+							{
+								@"clave2":clave2
+								@"caption":@("$./txt_clave2")
+								@"attributes":ifstr(@("#./req_clave2"),"required='true'","")
+							}
+							do list.add(l,@claves2)
+						}
+						if clave3!="" || parse.bool(@isborrador)
+						{
+							using @claves3
+							{
+								@"clave3":clave3
+								@"caption":@("$./txt_clave3")
+								@"attributes":ifstr(@("#./req_clave3"),"required='true'","")
+							}
+							do list.add(l,@claves3)
+						} 
+						if clave4!="" || parse.bool(@isborrador)
+						{
+							using @claves4
+							{
+								@"clave4":clave4
+								@"caption":@("$./txt_clave4")
+								@"attributes":ifstr(@("#./req_clave4"),"required='true'","")
+							}
+							do list.add(l,@claves4)
+						}
+						if clave5!="" || parse.bool(@isborrador)
+						{
+							using @claves5
+							{
+								@"clave5":clave5
+								@"caption":@("$./txt_clave5")
+								@"attributes":ifstr(@("#./req_clave5"),"required='true'","")
+							}
+							do list.add(l,@claves5)
+						}
+						#$
+						div(class="columns" id="fields-adic")
+						{$""
+							script
+							{
+								$'
+								var elem=document.querySelector("#fields-adic");
+								view.createFieldsAditionalsList(#<to.json(l)>,elem,"",false,true);
+								'
+							}
+						}
+	  				}
+	  				div(class="tab-pane fade" id="nav-aviso" role="tabpanel" "aria-labelledby"="nav-aviso-tab")
+	  				{
+	  					div(class="columns")
+	  					{
+	  						div(class="col-lg-6")
+	  						{
+	  							label{"Correo 1"}
+	  							input(type="email" class="form-control form-control-sm" name="email" id="email" value="#<@('$./email')>")
+	  						}
+	  						div(class="col-lg-6")
+	  						{
+	  							label{"Correo 2"}
+	  							input(type="email"class="form-control form-control-sm"  name="email1" id="email1" value="#<@('$./email1')>")
+	  						}
+	  						div(class="col-lg-6")
+	  						{
+	  							label{"Teléfono 1"}
+	  							input(type="tel" class="form-control form-control-sm" name="telefono"  id="telefono"value="#<@('$./telefono')>")
+	  						}
+	  						div(class="col-lg-6")
+	  						{
+	  							label{"Teléfono 2"}
+	  							input(type="tel" class="form-control form-control-sm" name="telefono1" id="telefono1" value="#<@('$./telefono1')>")
+	  						}
+	  					}
+	  					#!
+	  					if not(@isnull) && not(@isborrador) && @isadmin
+	  					{
+	  						#$
+	  						div(class="" style="padding-top:10px")
+	  						{
+	  							button(type="button" class="btn btn-primary btn-sm" style="margin-right:3px" nodisabled="true" id="btneditaviso" onclick="view.disabledAviso()"){"Editar"}
+								button(type="button" class="btn btn-primary btn-sm" style="margin-right:3px;display:none" nodisabled="true" id="btnsaveaviso"){"Guardar"}
+								button(type="button" class="btn btn-danger btn-sm" style="margin-right:3px;display:none" nodisabled="true" id="btncancelaviso"){"Cancelar"}
+	  						}
+	  					}
+	  					#$
+	  				}
+	  				div(class="tab-pane fade" id="nav-config" role="tabpanel" "aria-labelledby"="nav-config-tab")
+	  				{
+						div(class="columns")
+						{
+							b{"Monto duración"}
+							div(class="col-lg-2")
+							{
+								label("for"="comision"){"Cuota de apertura:"}
+								input(class="form-control form-control-sm" name="comision" maxlength="15" onkeyUp="op.keyup(this,'#dv-cuota_apertura')" onkeypress="return op.filterFloat(event,this)" id="comision" value="#<@('#./comision')>"){""}
+							}
+							div(class="col-lg-2")
+							{
+								label("for"="anticipo"){"Anticipo:"}
+								input(class="form-control form-control-sm" name="anticipo" maxlength="15" onkeyup="op.keyup(this,'#dv-anticipo')" onkeypress="return op.filterFloat(event,this)" id="anticipo" value="#<@('#./anticipo')>"){""}
+							}
+							div(class="col-lg-2")
+							{
+								label("for"="meses"){"Meses:"}
+								input(class="form-control form-control-sm" name="meses" id="meses" maxlength="11" onkeyUp="op.keyup(this,'#dv-meses')" onkeypress="return op.filterInt(event,this)"  value="#<@('#./meses')>"){""}
+							}
+							div(class="col-lg-2")
+							{
+								label("for"="mensualidad"){"Mensualidad:"}
+								input(class="form-control form-control-sm" name="mensualidad" maxlength="50" onkeyUp="op.keyup(this,'#dv-mensualidad')" id="mensualidad" onkeypress="return op.filterFloat(event,this)" value="#<@('#./mensualidad')>"){""}
+							}
+							
+							
+							div(class="col-lg-2")
+							{
+								label("for"="monto"){"Monto:"}
+								input(class="form-control form-control-sm" name="monto" id="monto" maxlength="17" onkeyUp="op.keyup(this,'#dv-monto')" readonly="true" value="#<@('#./monto')>"){""}
+							}
+							div(class="col-lg-2")
+							{
+								label("for"="Divisa"){"Divisa:"}
+								select(id="divisa" name="divisa" class="form-select form-select-sm")
+								{
+									option(value=""){""}
+									option(value="MXN"){"MXN"}
+								}
+							}
+						}
+						hr{}
+
+						div(class="row")
+						{$""
+							b{"Pronto pago"}
+							div(class="col-lg-2")
+							{
+								label{"Descuento (%):"}
+								input(class="form-control form-control-sm" name="desc_pronto_pago" maxlength="7" onkeypress="return op.filterFloat(event,this)" id="desc_pronto_pago" value="#<@('#./desc_pronto_pago')>")
+								
+							}
+							div(class="col-lg-2")
+							{
+								label{"Bonificación: "}
+								input(class="form-control form-control-sm" name="boni_pronto_pago" maxlength="15" id="boni_pronto_pago" onkeypress="return op.filterFloat(event,this)" value="#<@('#./boni_pronto_pago')>")	
+							}
+							div(class="col-lg-2")
+							{
+								label{"Días pronto pago: "}
+								input(class="form-control form-control-sm" name="dias_pronto_pago" maxlength="15" id="dias_pronto_pago" onkeypress="return op.filterInt(event,this)" value="#<@('#./dias_pronto_pago')>")	
+							}
+						}
+						div(class="row")
+						{
+							b{"Pago tardío"}
+							div(class="col-lg-2")
+							{
+								label{"Cargo retraso (%):"}
+								input(class="form-control form-control-sm" name="cargo_retraso" maxlength="7" onkeypress="return op.filterFloat(event,this)" id="cargo_retraso" value="#<@('#./cargo_retraso')>")
+								
+							}
+							div(class="col-lg-2")
+							{
+								label{"Cuota retraso: "}
+								input(class="form-control form-control-sm" name="cuota_retraso" maxlength="15" id="cuota_retraso" onkeypress="return op.filterFloat(event,this)" value="#<@('#./cuota_retraso')>")
+							}
+							div(class="col-lg-2")
+							{
+								label{"Días pago tardío: "}
+								input(class="form-control form-control-sm" name="dias_pago_tardio" maxlength="15" id="dias_pago_tardio" onkeypress="return op.filterInt(event,this)" value="#<@('#./dias_pago_tardio')>")	
+							}
+						}
+						hr{}
+						div(class="columns")
+						{
+								b{"Renovación"}
+								div(class="col-lg-2 d-flex align-items-center")
+								{
+									#!
+									renovable=@("#./renovable")
+									#$
+									label("for"="renovable" class="d-flex" style="gap:10px"){input(type="checkbox" name="renovable" id="renovable" "#<ifstr(renovable,'checked','')>"="") "Renovable"}
+								}
+								div(class="col-lg-2")
+								{
+									label("for"="cuota_renovacion"){"Cuota de renovación:"}
+									input(class="form-control form-control-sm" name="cuota_renovacion" maxlength="15" id="cuota_renovacion" onkeypress="return op.filterFloat(event,this)" value="#<@('#./cuota_renovacion')>"){""}
+								}
+								
+								div(class="col-lg-2 d-flex align-items-center")
+								{
+									#!
+									autorenovable=@("#./autorenovable")
+									#$
+									label("for"="autorenovable" class="d-flex" style="gap:10px"){input(type="checkbox" name="autorenovable" id="autorenovable" "#<ifstr(autorenovable,'checked','')>"="") "Auto renovable"}
+								}
+								input(type="hidden" name="sys_pk" id="sys_pk" value="#<@('#./sys_pk')>")
+								input(type="hidden" name="sys_recver" id="sys_recver" value="#<@('#./sys_recver')>")
+
+								//fields adicionales
+								input(type="hidden" name="req_clave1" id="req_clave1" value="#<@('#./req_clave1')>")
+								input(type="hidden" name="req_clave2" id="req_clave2" value="#<@('#./req_clave2')>")
+								input(type="hidden" name="req_clave3" id="req_clave3" value="#<@('#./req_clave3')>")
+								input(type="hidden" name="req_clave4" id="req_clave4" value="#<@('#./req_clave4')>")
+								input(type="hidden" name="req_clave5" id="req_clave5" value="#<@('#./req_clave5')>")
+						}
+
+	  				}
+	  				script
+	  				{
+	  					$'
+	  					$(document).ready(function(){
+	  						view.desdebd=false;
+	  						op.isnull=#<@isnull>;
+	  						op.isborrador=#<@isborrador>;
+	  						op.init();
+	  						view.divisa="#<@(\'$./divisa\')>";
+	  						view.init();
+	  						if(!op.isnull && !op.isborrador){view.disabledAll(true)}
+	  						if(!op.isnull)
+	  							{
+	  								view.desdebd=true;
+	  								view.loadDataTipoPlan(#<to.json(@("&."))>,false,true);
+
+	  							}
+	  						 view.EditClient(#<@editcliente>);
+	  					});
+	  					'
+	  				}
+	  			}
+	  			div(class="d-flex justify-content-end")
+				{
+					#!
+					textbtncerrar="Cancelar"
+					href=ifstr(@uri!="",@uri,"../")
+					type=ifstr(@editcliente,"button","submit") 
+					if parse.bool(@isborrador) || @editcliente
+					{
+						#$
+						input(type="#<type>" class="btn btn-primary m-1" id="btnaceptarform" value="Aceptar")
+						#!
+					}else{textbtncerrar="Cerrar"}
+					#$
+					a(class="btn btn-danger m-1" href="#<href>"){"#<textbtncerrar>"}
+				}
+  			}
+  			
+			
+		}
+	}
+}

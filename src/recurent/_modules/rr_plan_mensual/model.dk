@@ -1,0 +1,307 @@
+#include "dkli.dkh"
+#!
+module "rr_plan_mensual.dk"
+{
+	#include "website.dkl"
+
+	@list_query="SELECT rr.*,rrt.nombre,c.Nombre cliente FROM  rr_plan_mensual rr
+		INNER JOIN rr_tipo_plan_mensual rrt ON rr.ref_tipo=rrt.sys_pk
+		INNER JOIN cliente c ON rr.ref_cliente=c.Sys_PK  "
+
+		saldototal="SELECT ifnull(SUM(ROUND((rr1.importe - "+replace(@sql_descuento,"rr.","rr1.")+" + "+replace(@sql_recargo,"rr.","rr1.")+" )-ifnull(rr1.pagos,0),4)),0) saldo
+								FROM rr_plan_mensual_cardex rr1 INNER join rr_plan_mensual rrp on rr1.ref_plan=rrp.sys_pk WHERE rr1.ref_plan=rr.sys_pk"
+
+		saldosvencido="SELECT ifnull(SUM(ROUND((rr1.importe - "+replace(@sql_descuento,"rr.","rr1.")+" + "+replace(@sql_recargo,"rr.","rr1.")+" )-ifnull(rr1.pagos,0),4)),0) saldo
+								FROM rr_plan_mensual_cardex rr1 INNER join rr_plan_mensual rrp on rr1.ref_plan=rrp.sys_pk 
+								WHERE rr1.ref_plan=rr.sys_pk AND DATE(rr1.vencimiento)<=DATE(NOW())"
+
+	sql_vigentes_con_vencidos="SELECT rr.*,rrt.nombre,c.Nombre cliente,
+	(SELECT COUNT(*)  FROM rr_plan_mensual_cardex rc WHERE rc.vencimiento<=NOW() AND rc.ref_plan=rr.sys_pk)vencidos,
+	("+saldosvencido+")saldovencido,
+	("+saldototal+")saldototal
+ 	FROM  rr_plan_mensual rr
+	INNER JOIN rr_tipo_plan_mensual rrt ON rr.ref_tipo=rrt.sys_pk
+	INNER JOIN cliente c ON rr.ref_cliente=c.Sys_PK
+	WHERE IFNULL(rr.`status`,0)=1 HAVING saldovencido>0 ORDER BY rr.sys_dtcreated desc LIMIT 20 " //antes ORDER BY rr.sys_dtcreated,saldovencido
+
+	sql_borradores="SELECT rr.*,rrt.nombre,c.Nombre cliente,0 vencidos,0 saldovencido,0 saldototal FROM  rr_plan_mensual rr
+	INNER JOIN rr_tipo_plan_mensual rrt ON rr.ref_tipo=rrt.sys_pk
+	INNER JOIN cliente c ON rr.ref_cliente=c.Sys_PK WHERE IFNULL(rr.`status`,0)=0 ORDER BY rr.sys_dtcreated desc  LIMIT 10"
+
+	list_pk="SELECT rr.sys_pk
+ 	FROM  rr_plan_mensual rr
+	INNER JOIN rr_tipo_plan_mensual rrt ON rr.ref_tipo=rrt.sys_pk
+	INNER JOIN cliente c ON rr.ref_cliente=c.Sys_PK
+	WHERE IFNULL(rr.`status`,0)=1 HAVING ("+saldosvencido+")>0 ORDER BY rr.sys_dtcreated desc"
+
+	//sql para mostrar los cumplidos 1 mes mas del ultimo vencimiento
+	cumplidos_1_mes_mas="(IFNULL(rr.`status`,0)=1 
+	or (if(IFNULL(rr.`status`,0)=3,(SELECT date(DATE_ADD(rr1.vencimiento, INTERVAL 1 MONTH))ultimo_vencimiento
+	FROM rr_plan_mensual_cardex rr1
+	WHERE rr1.ref_plan=rr.sys_pk
+	ORDER BY rr1.vencimiento DESC
+	LIMIT 1)>DATE(NOW()),FALSE)))"// antes IFNULL(rr.`status`,0)=1
+
+	sql_vigentes_sin_vencidos="SELECT rr.*,rrt.nombre,c.Nombre cliente,
+	(SELECT COUNT(*)  FROM rr_plan_mensual_cardex rc WHERE rc.vencimiento<=NOW() AND rc.ref_plan=rr.sys_pk)vencidos,0 saldovencido,("+saldototal+")saldototal
+	FROM  rr_plan_mensual rr
+	INNER JOIN rr_tipo_plan_mensual rrt ON rr.ref_tipo=rrt.sys_pk
+	INNER JOIN cliente c ON rr.ref_cliente=c.Sys_PK 
+	WHERE "+cumplidos_1_mes_mas+"
+	and rr.sys_pk not in ("+list_pk+") ORDER BY rr.sys_dtcreated desc  LIMIT 10"
+
+	
+
+	if trim(@@(@http_context,"request/get/text_filter"))!=""
+	{
+		@list_query=@list_query + " where rr.id_contrato like '%@{text_filter}%' or  c.nombre like '%@{text_filter}%' or rrt.nombre like '%@{text_filter}%'  or rr.meses like '%@{text_filter}%' or rr.mensualidad like '%@{text_filter}%' or c.codigo like '%@{text_filter}%' or c.rfc like '%@{text_filter}%'
+		or rr.clave1 like '%@{text_filter}%' or rr.clave2 like '%@{text_filter}%' or rr.clave3 like '%@{text_filter}%' or rr.clave4 like '%@{text_filter}%' or rr.clave5 like '%@{text_filter}%' order by rr.status,rr.sys_dtcreated DESC"
+	}
+	else
+	{
+		@list_query="SELECT * FROM("+sql_vigentes_con_vencidos+")a
+					UNION all
+					SELECT * FROM("+sql_borradores+")b
+					UNION all
+					SELECT * FROM("+sql_vigentes_sin_vencidos+")c"
+		// do rise_error(00,@list_query)
+	}
+	@read_query="SELECT #<@sys_fields>,rr.ref_tipo,date_format(rr.contratacion,'%Y-%m-%d')contratacion,
+			rr.mensualidad,rr.comision,rr.anticipo,rr.monto,rr.renovable,rr.autorenovable,date_format(rr.inicio,'%Y-%m-%d')inicio,date_format(rr.fin,'%Y-%m-%d')fin,rr.ref_cliente,rr.id_contrato,
+			rr.objeto_contrato,rr.cuota_renovacion,rr.desc_pronto_pago,rr.boni_pronto_pago,rr.meses,rr.cargo_retraso,rr.cuota_retraso,
+			rr.divisa,rr.txt_clave1,rr.txt_clave2,rr.txt_clave3,rr.txt_clave4,rr.txt_clave5,rr.clave1,rr.clave2,rr.clave3,rr.clave4,rr.clave5,
+			rr.req_clave1,rr.req_clave2,rr.req_clave3,rr.req_clave4,rr.req_clave5,
+			rr.email,rr.email1,rr.telefono,rr.telefono1,rr.`status` ,rr.dias_pronto_pago,rr.dias_pago_tardio
+			FROM #<@table_name> rr where #<@keyfield>=@_entity_id limit 1;"
+
+	
+	#!
+	verifyFields::&data
+	{
+		if parse.bool(@@(data,"renovable")){data<"renovable">:1}
+		else{data<"renovable">:0}
+		if parse.bool(@@(data,"autorenovable")){data<"autorenovable">:1}
+		else{data<"autorenovable">:0}
+
+		
+
+		if @@(data,"$mensualidad")==""{data<"mensualidad">:0}
+		if @@(data,"$meses")==""{data<"meses">:0}
+		if @@(data,"$anticipo")==""{data<"anticipo">:0}
+		if @@(data,"$monto")==""{data<"monto">:0}
+		if @@(data,"$comision")==""{data<"comision">:0}
+		if @@(data,"$cuota_renovacion")==""{data<"cuota_renovacion">:0}
+		if @@(data,"$desc_pronto_pago")==""{data<"desc_pronto_pago">:0}
+		if @@(data,"$boni_pronto_pago")==""{data<"boni_pronto_pago">:0}
+		if @@(data,"$cargo_retraso")==""{data<"cargo_retraso">:0}
+		if @@(data,"$cuota_retraso")==""{data<"cuota_retraso">:0}
+
+		//campos adicionales requeridas
+		if parse.bool(@@(data,"req_clave1")){data<"req_clave1">:1}
+		else{data<"req_clave1">:0}
+		if parse.bool(@@(data,"req_clave2")){data<"req_clave2">:1}
+		else{data<"req_clave2">:0}
+		if parse.bool(@@(data,"req_clave3")){data<"req_clave3">:1}
+		else{data<"req_clave3">:0}
+		if parse.bool(@@(data,"req_clave4")){data<"req_clave4">:1}
+		else{data<"req_clave4">:0}
+		if parse.bool(@@(data,"req_clave5")){data<"req_clave5">:1}
+		else{data<"req_clave5">:0}
+
+	}
+	rr.referencia::&db
+	{
+		return dbr.str(db,"select (if(count(*)>=1,CONCAT('P',LPAD(Cast(MAX(SUBSTR(id_contrato,2,9))+1 as CHAR),'8','0')),'P00000001')) as referencia from rr_plan_mensual where id_contrato like 'P%';",@null)
+	}
+	rr.create::&db,&params,&data
+	{
+		if @@(data,"$id_contrato")=="<A>" || @@(data,"$id_contrato")==""{data<"id_contrato">:rr.referencia(db)}
+		do field.remove(data,"ref_cliente_text")
+
+		do verifyFields(data)
+
+		ref dcreate=entity.create(db,params,data)
+		
+		//invocar el webhook de creación de plan *************************
+		ref tipo=getDataTipoPlan(db,@@(dcreate,"$ref_tipo"))
+		do invoke_webhook(@@(tipo,"$webhook"),"nuevo_plan",dcreate)
+		//************************************************************
+
+		return dcreate
+	}
+	rr.actionUpdateMonto::&db,&params,&data
+	{
+		new plan
+		{
+			@"plan":@@(params,"_entity_id")
+			@"importe":@@(data,"#importe")
+			@"apartirde":@@(data,"apartirde")
+			@"monto":@@(data,"#monto")
+		}
+		params<"onlydata">:@true
+		
+		ref dataplan=rr.action(db,params)
+
+		do dbr.begin(db)
+		sqldesde="select rr.concepto FROM rr_plan_mensual_cardex rr INNER join rr_plan_mensual rrp on rr.ref_plan=rrp.sys_pk 
+					WHERE rr.ref_plan=@plan and
+					(ifnull(ROUND((rr.importe - "+@sql_descuento+" + "+@sql_recargo+" )-ifnull(rr.pagos,0),4),0))>0 "
+
+		sqlmonto="update rr_plan_mensual_cardex rr INNER join rr_plan_mensual rrp on rr.ref_plan=rrp.sys_pk 
+				set rr.importe=@importe
+				WHERE rr.ref_plan=@plan and
+					(ifnull(ROUND((rr.importe - "+@sql_descuento+" + "+@sql_recargo+" )-ifnull(rr.pagos,0),4),0))>0"
+
+			if @@(data,"modo")=="01"
+			{
+				sqldesde=sqldesde +" limit 1"
+				desde=dbr.str(db,sqldesde,plan)
+				do dbr.execute(db,sqlmonto,plan)
+				
+			}
+			else
+			{
+				sqldesde= sqldesde + " AND rr.sys_pk>=@apartirde limit 1"
+				desde=dbr.str(db,sqldesde,plan)
+
+				sqlmonto=sqlmonto + " AND rr.sys_pk>=@apartirde AND rr.tipo_movimiento="+str(@rr_clave_mensualidad)
+				do dbr.execute(db,sqlmonto,plan)
+			}
+
+			do dbr.execute(db,"update rr_plan_mensual set monto=@monto,mensualidad=@importe where sys_pk=@plan",plan)
+			@use_transaction_global=@false
+			do recontruirSaldo(db,params)
+
+			montoformated=format(@@(dataplan,"#mensualidad"),"$ #,#.00")
+			importeformated=format(@@(plan,"#importe"),"$ #,#.00")
+
+			operation="Cambio importe mensualidad de "+montoformated+" a "+importeformated+" desde la "+desde
+			// do rise_error(00,operation)
+			new log
+			{
+				@"ref_plan":@@(plan,"plan")
+				@"usuario":@@(@http_context,"session/user/name")
+				@"nota":@@(data,"notas")
+				@"operacion":operation
+			}
+			do dbr.insert(db,"rr_plan_mensual_log",log)
+
+		do dbr.commit(db)
+		return dataplan
+		exception
+		{
+			if dbr.in_transaction(db){do dbr.rollback(db)}
+			do rise_error(99,last_error())
+		}
+	}
+	rr.update::&db,&params,&data
+	{
+		if field.exist(data,"ref_cliente_text"){do field.remove(data,"ref_cliente_text")}
+
+		if parse.bool(@@(params,"changemonto"))
+		{
+			//invocar el webhook de cambio_mensualidad *************************
+			antmensualidad=dbr.num(db,"select mensualidad from rr_plan_mensual where sys_pk=@_entity_id",params)
+			ref rrdata=rr.actionUpdateMonto(db,params,data)
+			ref tipo=getDataTipoPlan(db,@@(rrdata,"$ref_tipo"))
+
+			new dt
+			{
+				@"id_plan":@@(rrdata,"sys_pk")
+				@"nuevo":@@(rrdata,"#mensualidad")
+				@"anterior":antmensualidad
+			}
+			new pdt{@"fields*":dt}
+			do invoke_webhook(@@(tipo,"$webhook"),"cambio_mensualidad",pdt)
+			//********************************************************************
+
+			return rrdata
+		}
+		else if not(parse.bool(@@(params,"aviso"))) && not(@@(data,"#historial"))
+		{
+			if @@(data,"$id_contrato")=="<A>" || @@(data,"$id_contrato")==""{data<"id_contrato">:rr.referencia(db)}
+			do field.remove(data,"ref_cliente_text")
+
+			do verifyFields(data)
+		}
+		else if @@(data,"#historial")
+		{
+			return activarPlan(db,params,data)
+		}
+		// do rise_error(00,"aki")
+		sqlcliente="select c.sys_pk,c.codigo,c.nombre,c.rfc from rr_plan_mensual rr inner join cliente c ON rr.ref_cliente=c.sys_pk WHERE rr.sys_pk=@_entity_id"
+		ref cliente=dbr.rec(db,sqlcliente,params)
+
+		if @table_name==""{@table_name=entity.safe_id(@@(params,"_entities_type"))}
+
+		if field.exist(data,"sys_pk"){do field.remove(data,"sys_pk")}
+
+		if field.exist(data,"ref_cliente"){data<"ref_cliente">:@@(data,"#ref_cliente")}
+		if field.exist(data,"sys_recver"){data<"sys_recver">:@@(data,"#sys_recver")}
+		do dbr.update(db,@table_name,data,ftext("#<@keyfield>=@_entity_id"),params)
+		
+		ref dataupdate=dbr.rec(db,ftext("select * FROM #<@table_name> where #<@keyfield>=@_entity_id"),params)//entity.update(db,params,data)//
+		// do rise_error(99,to.json(dataupdate))
+		if parse.bool(@@(params,"client"))
+		{
+			ref newcliente=dbr.rec(db,sqlcliente,params)
+			operation="Cambio de cliente de facturación de "+@@(cliente,"$codigo")+" a "+@@(newcliente,"$codigo")
+			new log
+			{
+				@"ref_plan":@@(params,"_entity_id")
+				@"usuario":@@(@http_context,"session/user/name")
+				@"nota":@@(data,"$notas")
+				@"operacion":operation
+			}
+			do dbr.insert(db,"rr_plan_mensual_log",log)
+
+			//invocar el webhook de cambio_cliente *************************
+			ref tipo=getDataTipoPlan(db,@@(dataupdate,"$ref_tipo"))
+			new anterior
+			{
+				@"codigo":@@(cliente,"$codigo")
+				@"nombre":@@(cliente,"$nombre")
+			}
+			new nuevo
+			{
+				@"codigo":@@(newcliente,"$codigo")
+				@"nombre":@@(newcliente,"$nombre")
+			}
+			new obj
+			{
+				@"anterior*":anterior
+				@"nuevo*":nuevo
+				@"id_plan":@@(params,"_entity_id")
+			}
+			new f
+			{
+				@"fields*":obj
+			}
+			do invoke_webhook(@@(tipo,"$webhook"),"cambio_cliente",f)
+			//***************************
+		}
+		
+		return dataupdate
+	}
+	addFieldsSystem::&data
+	{
+		if isnull(data){return}
+
+		using data
+		{
+			@"sys_dtcreated*":now()
+			@"sys_timestamp*":now()
+		}
+	}
+
+	
+
+	rr.action::&db, &params
+	{
+		@use_transaction=@true
+		return plan_action(db,params)
+	}
+	point @create to rr.create
+	point @update to rr.update
+	point @read to rr.action
+}

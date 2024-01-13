@@ -1,0 +1,150 @@
+RecurRent
+rr.ws.induxosft.net
+====================
+
+rr_tipo_plan_mensual
+	Nombre string(50)
+	Objeto del contrato memo
+	Meses int
+	Mensualidad decimal(10,4)
+	Comisión decimal(10,4)
+	Anticipo decimal(10,4)
+	Monto decimal(12,4)
+	cuota de renovación decimal(10,4)
+	Renovable bool
+	Autorenovable bool
+
+	desc_pronto_pago decimal(4,2) %
+	boni_pronto_pago decimal(10,4) $
+	
+	cargo_retraso decimal(4,2) % 
+	cuota_retraso decimal(10,4)$
+	
+	txt_clave1 varchar(50)
+	txt_clave2 varchar(50)
+	txt_clave3 varchar(50)
+	txt_clave4 varchar(50)
+	txt_clave5 varchar(50)
+	req_clave1 bool
+	req_clave2 bool
+	req_clave3 bool
+	req_clave4 bool
+	req_clave5 bool
+	
+rr_plan_mensual
+	ref_tipo
+	Contratación fecha
+	Mensualidad
+	Comisión
+	Anticipo
+	Monto
+	Autorenovable
+	Inicio fecha
+	Fin 
+	Renovación automática
+	ref_cliente
+	id del contrato
+	objeto del contrato
+	desc_pronto_pago decimal(4,2) %
+	boni_pronto_pago decimal(10,4) $
+	
+	cargo_retraso decimal(4,2) % 
+	cuota_retraso decimal(10,4)$
+	clave1 varchar(150)
+	..5
+	status
+	usuario_activa string(50)
+	usuario_cancela string(50)
+	fecha_cancelacion datetime
+	fecha_activacion datetime
+
+Contrataci´´oón
+inicio 1/jun/23
+meses=6
+fin=1/dic/23
+
+Mostrar los ´´uúltimos 10 (borradores m´´aás recientes)
+Mostrar los ´´uúltimos 10 (vigentes m´´aás recientes)
+
+status_plan
+- Borrador 0
+- Vigente  1
+- Cancelado 2
+- Cumplido 3
+ 
+rr_plan_mensual_cardex
+	ref_plan int
+	tipo_movimiento int 
+	concepto string(1024)
+	vencimiento datetime
+	importe decimal(12,4)
+	
+	descuento decimal(12,4)
+	recargo decimal(12,4)
+	
+	fecha_pago datetime
+	id_pago string(36)
+	fecha_factura datetime
+	id_factura	string(36)
+	usuario_pago string(50)
+	
+rr_tipo_movimiento (enum)
+- Anticipo 0
+- Cuota por apertura 1
+- Cuota de renovación 2
+- Mensualidad 3
+- Otros 4
+
+SELECT rr.concepto,rr.vencimiento,rr.importe,rrp.desc_pronto_pago,rrp.boni_pronto_pago,
+
+ifnull(if(NOW()<rr.vencimiento
+	,if(ifnull(rr.pagos,0)=0 and (iFNULL(rr.recargo,0)=0 and IFNULL(rr.descuento,0)=0),
+	(rr.importe - rr.importe /(1+rrp.desc_pronto_pago/100)) +rrp.boni_pronto_pago,rr.descuento)
+,0),0)importedescuento,
+
+rrp.cargo_retraso,rrp.cuota_retraso,
+
+ifnull(if(NOW()>rr.vencimiento
+	,if(ifnull(rr.pagos,0)=0 and (iFNULL(rr.recargo,0)=0 and IFNULL(rr.descuento,0)=0),
+	(rr.importe * (1+rrp.cargo_retraso/100)-rr.importe)+rrp.cuota_retraso,rr.recargo)
+	,0),0)cargo
+FROM rr_plan_mensual_cardex rr INNER JOIN rr_plan_mensual rrp ON rr.ref_plan=rrp.sys_pk WHERE rrp.sys_pk=14
+
+#pagos>0
+#descuento o el cargo NULL o cero
+
+
+#if (ifnull(pago,0)=0 and (iFNULL(cargo,0)=0 and IFNULL(descuento,0)=0),calculas, tomas el cargo y desceunto
+
+aplicar_pago::
+{
+	total_pagos=sum(pago.importe)//de la tabla pago
+	aplicado=sum(cardex_pago.importe)
+	xaplicar=total_pagos-aplicado
+	ref xsaldar=cardex con saldo ordenadas por vencimiento
+	
+	resto=xaplicar
+	for xsaldar
+	{
+		if descuento==0 && recargo==0 
+		{
+			calcular si la mensualidad debe tener un descuento o un recargo
+		}
+		
+		saldo=importe-descuento+recargo
+		if resto<saldo{
+			aplicar=resto 
+			resto=0
+		}
+		else 
+		{
+			aplicar=saldo
+			resto=resto-aplicar
+		}
+		insertar en cardex_pago y sumar a pagos de cardex aplicar
+		
+		if resto<.01 break
+	}
+}
+
+(453 *0.05-453)+150

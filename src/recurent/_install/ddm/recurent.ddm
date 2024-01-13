@@ -1,0 +1,350 @@
+#include "ddm.dkh"
+model "erp.recurent"
+{
+    /* 
+    RecuRent: Gestión de rentas y planes de suscripción.
+    =======================================================================
+    */
+
+    #include "induxsoft.abstracts.ddm"
+
+    //* ======================================== [ DEPENDENCIAS (FK) ]
+    // Estados posibles para un cliente, proveedor u organización
+    entity "cstatusorg" : "EnumModel" {}
+    // Catálogo de monedas o divisas
+    entity "divisa" : "TableModel"
+    {
+        @"codigo" string(5) unique required
+        @"descripcion" string(30) unique required
+        @"tcambio" decimal(18,8)
+    }
+    //#region Domicilio
+    entity "pais" : "TableModel"
+    {
+        @"codigo" string(8) unique required
+        @"codigotel" string(5)
+        @"nombre" string(100) unique required
+    }
+    entity "edoprov" : "TableModel"
+    {
+        @"codigo" string(8) unique required
+        @"nombre" string(50) required
+        @"ipais" int ref:"pais" ["sys_pk"] required
+    }
+    entity "ciudad" : "TableModel"
+    {
+        @"codigo" string(8) unique required
+        @"codigotel" string(5)
+        @"nombre" string(100) required
+        @"estado" int ref:"edoprov" ["sys_pk"] required
+    }
+    entity "domicilio" : "TableModel"
+    {
+        @"codpos" string(10)
+        @"colonia" string(150)
+        @"direccion" string(1024)
+        @"notas" string(150)
+        @"telefonos" string(150)
+        @"iciudad" int ref:"ciudad" ["sys_pk"]
+        @"numint" string(1024)
+        @"numext" string(1024)
+    }
+    //#endregion
+    // agente
+    entity "agente" : "TableModel"
+    {
+        @"codigo" string(50) unique required
+        @"codnomina" string(50) unique
+        @"email" string(50)
+        @"nombre" string(50) unique required
+        @"notas" memo
+        @"pcomision" decimal(18,8)
+        @"telefono" string(150)
+        @"domicilio1" int ref:"domicilio" ["sys_pk"]
+        @"uf_capitan" bool
+        @"uf_sys_baja" bool
+        @"uf_iuser" int
+
+    }
+    // contacto
+    entity "contacto" : "TableModel"
+    {
+        @"apellidos" string(50) required
+        @"email1" string(50)
+        @"email2" string(50)
+        @"email3" string(50)
+        @"email4" string(50)
+        @"empresa" string(50)
+        @"nombre" string(50) required
+        @"notas" memo
+        @"puesto" string(50)
+        @"tel1" string(50)
+        @"tel2" string(50)
+        @"tel3" string(50)
+        @"tratamiento" string(5)
+        @"website" string(150)
+        @"domicilio1" int ref:"domicilio" ["sys_pk"]
+        @"domicilio2" int ref:"domicilio" ["sys_pk"]
+    }
+    // zona
+    entity "zona" : "TableModel"
+    {
+        @"nombre" string(30) unique required
+        @"notas" string(255) 
+    }
+    // Tipo (clasificación) del cliente
+    entity "tipocliente" : "TableModel"
+    {
+        @"codigo" string(15) unique required
+        @"descripcion" string(50) unique required
+        @"notas" string(4096) 
+    }
+    // Datos de un cliente
+    entity "cliente" : "TableModel"
+    {
+        @"codcuenta" string(50) unique
+        @"codigo" string(35) unique required
+        @"curp" string(25) unique
+        @"descuento" decimal(19,8)
+        @"diascredito" int
+        @"email" string(80)
+        @"fax" string(150)
+        @"limitecredito" decimal(19,8)
+        @"monedero" decimal(19,8)
+        @"nombre" string(150) unique required
+        @"notas" memo
+        @"precio" decimal(19,8)
+        @"puntos" decimal(19,8)
+        @"rfc" string(15)
+        @"saldo" decimal(19,8)
+        @"saldopuntos" decimal(19,8)
+        @"status" int ref:"cstatusorg" ["id"]
+        @"telefonos" string(150)
+        @"website" string(150)
+        @"agente" int ref:"agente" ["sys_pk"]
+        @"contacto1" int ref:"contacto" ["sys_pk"]
+        @"contacto2" int ref:"contacto" ["sys_pk"]
+        @"contacto3" int ref:"contacto" ["sys_pk"]
+        @"domicilio1" int ref:"domicilio" ["sys_pk"]
+        @"domicilio2" int ref:"domicilio" ["sys_pk"]
+        @"domicilio3" int ref:"domicilio" ["sys_pk"]
+        @"idivisa" ref:"divisa"  required
+        @"tipo" int ref:"tipocliente" ["sys_pk"] required
+        @"zona" int ref:"zona" ["sys_pk"]
+        @"uf_sys_baja" bool
+        @"uf_addenda" bool
+        @"regfiscal" string(3)
+    }
+
+    //* ======================================== [ ENTIDADES PRINCIPALES ]
+    entity "status_plan" : "EnumModel" {}
+    entity "rr_tipo_movimiento" : "EnumModel" {}
+
+    entity "rr_tipo_plan_mensual" : "TableModel"
+    {
+        @"nombre" string(50)
+        @"objeto_contrato" memo
+        @"meses" int
+        @"mensualidad" decimal(10,4)
+        @"comision" decimal(10,4)
+        @"anticipo" decimal(10,4)
+        @"monto" decimal(12,4)
+        @"cuota_renovacion" decimal(10,4)
+        @"renovable" bool
+        @"autorenovable" bool
+        @"desc_pronto_pago" decimal(4,2)
+        @"boni_pronto_pago" decimal(10,4)
+        @"cargo_retraso" decimal(4,2)
+        @"cuota_retraso" decimal(10,4)
+        @"divisa" string(5)
+        @"txt_clave1" varchar(50)
+        @"txt_clave2" varchar(50)
+        @"txt_clave3" varchar(50)
+        @"txt_clave4" varchar(50)
+        @"txt_clave5" varchar(50)
+        @"req_clave1" bool
+        @"req_clave2" bool
+        @"req_clave3" bool
+        @"req_clave4" bool
+        @"req_clave5" bool
+        @"webhook" string(1024)
+        @"dias_pronto_pago" int
+        @"dias_pago_tardio" int
+    }
+
+    entity "rr_plan_mensual" : "TableModel"
+    {
+        @"ref_tipo" int ref:"rr_tipo_plan_mensual" ["sys_pk"]
+        @"contratacion" datetime 
+        @"mensualidad" decimal(10,4)
+        @"comision" decimal(10,4)
+        @"anticipo" decimal(10,4)
+        @"monto" decimal(12,4)
+        @"renovable" bool
+        @"autorenovable" bool
+        @"inicio" datetime
+        @"fin" datetime
+        @"ref_cliente" int ref:"cliente" ["sys_pk"]
+        @"id_contrato" string(50) unique
+        @"objeto_contrato" memo
+        @"cuota_renovacion" decimal(10,4)
+        @"desc_pronto_pago" decimal(4,2) 
+        @"boni_pronto_pago" decimal(10,4) 
+        @"meses" int
+        @"cargo_retraso" decimal(4,2) 
+        @"cuota_retraso" decimal(10,4)
+        @"divisa" string(5)
+        @"txt_clave1" varchar(50)
+        @"txt_clave2" varchar(50)
+        @"txt_clave3" varchar(50)
+        @"txt_clave4" varchar(50)
+        @"txt_clave5" varchar(50)
+        @"req_clave1" bool
+        @"req_clave2" bool
+        @"req_clave3" bool
+        @"req_clave4" bool
+        @"req_clave5" bool
+        @"clave1" string(50)
+        @"clave2" string(50)
+        @"clave3" string(50)
+        @"clave4" string(50)
+        @"clave5" string(50)
+        @"email" string(255)
+        @"email1" string(255)
+        @"telefono" string(50)
+        @"telefono1" string(50)
+        @"status" int ref:"status_plan" ["id"]
+        @"usuario_activa" string(50)
+        @"usuario_cancela" string(50)
+        @"fecha_cancelacion" datetime
+        @"fecha_activacion" datetime
+        @"fecha_renovacion" datetime
+        @"dias_pronto_pago" int
+        @"dias_pago_tardio" int
+    }
+
+    entity "rr_plan_mensual_cardex" : "TableModel"
+    {
+        @"ref_plan" int ref:"rr_plan_mensual" ["sys_pk"]
+        @"tipo_movimiento" int ref:"rr_tipo_movimiento" ["id"]
+        @"concepto" string(1024)
+        @"vencimiento" datetime
+        @"importe" decimal(12,4)
+        @"descuento" decimal(12,4)
+        @"recargo" decimal(12,4)
+        @"fecha_pago" datetime
+        @"fecha_factura" datetime
+        @"id_factura"  string(36)
+        @"pagos" decimal(12,4)
+    }
+
+    entity "rr_plan_mensual_pago": "TableModel"
+    {
+        @"formapago" string(5)
+        @"importe" decimal(12,4)
+        @"divisa" string(5)
+        @"fecha" datetime
+        @"usuario" string(50)
+        @"fecha_factura" datetime
+        @"id_factura"  string(36)
+        @"referencia" string(50)
+        @"notas" string(1024)
+        @"ref_plan" int ref:"rr_plan_mensual" ["sys_pk"]
+    }
+
+    entity "rr_plan_mensual_cardex_pago"
+    {
+        @"sys_pk" int key required autoincrement
+        @"fecha" datetime
+        @"ref_cardex" int ref:"rr_plan_mensual_cardex" ["sys_pk"]
+        @"ref_pago" int ref:"rr_plan_mensual_pago" ["sys_pk"]
+        @"monto" decimal(12,4)
+    }
+
+    entity "rr_plan_mensual_historial"
+    {
+        @"sys_pk" int key required autoincrement
+        @"ref_plan" int ref:"rr_plan_mensual" ["sys_pk"]
+        @"fecha" datetime
+        @"mensual_cardex" memo
+        @"mensual_pago" memo
+        @"cardex_pago" memo
+    }
+
+    entity "rr_plan_mensual_log"
+    {
+        @"sys_pk" int key required autoincrement
+        @"ref_plan" int ref:"rr_plan_mensual" ["sys_pk"]
+        @"usuario" string(255)
+        @"nota" string(1024)
+        @"operacion" string(255)
+    }
+
+    entity "rr_divisas"
+    {
+        @"clave" string(12) key required
+        @"valor" string(150)
+    }
+
+    entity "rr_formapago"
+    {
+        @"clave" string(12) key required
+        @"valor" string(150)
+    }
+
+    //* ======================================== [ ... ]
+    // Permisos disponibles
+    entity "sitem" : "TableModel"
+    {
+        @"description" string(250) 
+        @"itemid" string(32) unique required
+        @"itemparent" int ref:"sitem" ["sys_pk"] 
+    }
+    // Categorías jerárquicas de variables
+    entity "varcategory"
+    {
+        @"id" string(32) key
+        @"caption" string(150) required
+        @"help" memo
+        @"parent" ref:"varcategory"
+    }
+    // Variables globales
+    entity "globalvar" : "TableModel"
+    {
+        @"varname" string(32) unique required
+        @"vardefault" string(255)
+        @"varvalue" memo
+        @"varcaption" string    // Etiqueta de la variable
+        @"varhelp" memo         // Ayuda o información adicional
+        @"vartype" string(15)   // Tipo de dato: string,integer,decimal,bool,date,datetime,time
+        @"varinput" memo        // Json con especificaciones al tipo de control de entrada: null or 'default', color, select,inputkey,dkl,json,textarea
+        @"ref_varcat" ref:"varcategory" // Categoría de variable
+        @"userenable" bool // Si es true, la variable puede establecerse por usuario
+    }
+    // Información de la aplicación
+    entity "sys_app_catalog"
+    {
+        @"pack_id" string(32) required
+        @"app_id" string(32) key
+        @"app_title" string(255)
+        @"created" datetime required
+        @"app_info" mmemo
+    }
+    // Categoria de la aplicación
+    entity "sys_app_category"
+    {
+        @"id" string(32) key
+        @"title" string(255) required
+    }
+    // Recursos de la aplicación
+    entity "sys_app_shortcut" 
+    {
+        @"id" string(32) key
+        @"title" string(255) required
+        @"icon96x96" string(1024) required
+        @"src" string(1024) required
+        @"_blank" bool
+        @"appid" ref:"sys_app_catalog"
+        @"cat" ref:"sys_app_category"
+    }
+}

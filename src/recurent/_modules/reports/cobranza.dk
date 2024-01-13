@@ -1,0 +1,193 @@
+#include "dkli.dkh"
+#!
+module "cabranza"
+{
+	#include "functions.dkh"
+	#include "serialize.dkh"
+	#include "uielements.dkl"
+	#include "dbr.dkh"
+	do @context.begin(@crud_context)
+
+	ref @http_context=@("&http")
+	#include "website.dkl"
+	include @path_list_common
+
+	error=@("$error/message")
+
+	cell_link_func::&params, &row, &cell
+    {
+        new headers
+        {
+            @"style":"position: sticky !important;top:0 !important;background-color:#fff;"
+        }
+        if @@(cell,"element")=="th"{cell<"attributes*">:headers}
+
+        if @@(cell,"cell_type")=="summary"
+        {
+        	new attr
+			{
+				@"style":"color:black;font-weight: bold;text-align:right;"
+			}
+			if @@(cell,"column")!="vencidos" && @@(cell,"column")!="vigentes"{cell<"attributes*">:attr} 
+			else
+			{
+				new attr
+				{
+					@"style":"color:black;font-weight: bold;"
+				}
+				cell<"attributes*">:attr
+			}
+        }
+    }
+    title="Planes vigentes por cobrar."
+    if parse.bool(@("parameters/_detail")){title="Planes vencidos."}
+	#$
+	div(class="container-lg pt-1 ps-3 pe-3" style="background-color:#F5F5F5; min-height:94%;" id="container-ventas")
+	{
+		div(class="p-4 bg-white border-bottom" id="container-card" style="min-height:80vh")
+		{
+			div(class="d-flex align-items-center justify-content-end")
+			{
+				span(class="cgray" onclick="view.redirec('#<@RR_PLAN_MENSUAL>')")
+				{
+					$'<svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" fill="currentColor" class="bi bi-x-lg" viewBox="0 0 16 16">
+						<path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854Z"/>
+					</svg>'
+				}
+			}
+			
+			br{}
+			
+			h5(class="d-flex justify-content-center"){b{"#<@('$./tipoplan/nombre')>"}}
+			h5(class="d-flex justify-content-center"){b{"#<title>"}}
+
+			div(class="d-flex justify-content-end")
+			{
+				button(class="btn btn-primary btn-sm" onclick="window.print()"){"Imprimir"}
+			}
+			hr{}
+			#!
+			@_entity_type="./rr_tipo_movimiento/"
+			@show_btn_add=@false
+			if parse.bool(@("parameters/_detail"))
+			{
+				new @table_definition
+				{
+					@"datatable*":@("&./planesvencidos")
+			    	@"value_field":"sys_pk"
+			    	member @"columns"
+			    	{
+			    		member @"id_contrato"
+			    		{
+			    			@"caption":"ID Contrato"
+			    		}
+			    		member @"cliente"
+			    		{
+			    			@"caption":"Cientes"
+			    		}
+			    		
+			    		member @"saldovencido"
+			    		{
+			    			@"caption":"Saldo vencido"
+			    			@"format":"$ #,#.00"
+			    			@"summary":"sum"
+			    			member @"attributes"
+			    			{
+			    				@"style":"text-align:right;"
+			    			}
+			    		}
+			    		member @"saldototal"
+			    		{
+			    			@"caption":"Saldo total"
+			    			@"format":"$ #,#.00"
+			    			member @"attributes"
+			    			{
+			    				@"style":"text-align:right;"
+			    			}
+			    		}
+			    		member @"ultpago"
+			    		{
+			    			@"caption":"Ult. Pago"
+			    		}
+			    		member @"primervencimiento"
+			    		{
+			    			@"caption":"1er. Vencimiento"
+			    		}
+			    		member @"numultpagadas"
+			    		{
+			    			@"caption":"M. Pagadas"
+			    		}
+			    		
+			    	}
+			    	member @"rows_attributes"
+			        {
+			        	member @"detail"
+			        	{
+			        		@"class":"row_tr_#<@@(row,'sys_pk')> row_case"
+			        		@"style":"cursor:pointer"
+			        		@"onclick":"view.redirec('../../rr_plan_mensual_cardex/?_plan=#<@@(row,'sys_pk')>&_cardex=1')"
+			        	}
+			        }
+				}
+			}
+			else
+			{
+				new @table_definition
+				{
+					@"datatable*":@("&.")
+			    	@"value_field":"sys_pk"
+			    	member @"columns"
+			    	{
+			    		member @"nombre"
+			    		{
+			    			@"caption":"Tipo plan"
+			    		}
+			    		member @"vigentes"
+			    		{
+			    			@"caption":"Planes vigentes"
+			    			@"summary":"sum"
+			    		}
+			    		member @"vencidos"
+			    		{
+			    			@"caption":"vencidos"
+			    			@"summary":"sum"
+			    		}
+			    		member @"saldovencido"
+			    		{
+			    			@"caption":"Saldo vencido"
+			    			@"format":"$ #,#.00"
+			    			member @"attributes"
+			    			{
+			    				@"style":"text-align:right;"
+			    			}
+			    			@"summary":"sum"
+			    		}
+			    		member @"saldototal"
+			    		{
+			    			@"caption":"Saldo total"
+			    			@"format":"$ #,#.00"
+			    			member @"attributes"
+			    			{
+			    				@"style":"text-align:right;"
+			    			}
+			    			@"summary":"sum"
+			    		}
+			    		
+			    	}
+			    	member @"rows_attributes"
+			        {
+			        	member @"detail"
+			        	{
+			        		@"class":"row_tr_#<@@(row,'sys_pk')> row_case"
+			        		@"style":"cursor:pointer"
+			        		@"onclick":"view.redirec('./?_detail=1&_type=#<@@(row,'sys_pk')>')"
+			        	}
+			        }
+				}
+			}
+
+			do tableGlobalDefinition()
+		}
+	}
+	
+}

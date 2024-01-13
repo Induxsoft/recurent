@@ -1,0 +1,70 @@
+#include "dkli.dkh"
+#!
+module "upload"
+{
+	#include "functions.dkh"
+	#include "serialize.dkh"
+	#include "website.dkl"
+	#include "parse_csv.dkl"
+	#include "linux-fixes.dkh"
+
+	go api_base_service(responseJSONdata:response)
+	{
+		ref getData=@@(@http_context,"&request/get")
+		if isnull(getData){do rise_error(99,"párametros incompletos.")}
+
+		ref files=@@(@http_context,"&request/files")
+		if isnull(files){do rise_error(99,"Ningún archivo por subir.")}
+
+		action=@@(getData,"$action")
+
+		do dir.ensure(@path_files_csv)
+		do dir.ensure(@path_files_logs)
+		
+		file=""
+		for i=0; i<@count(files) && i<1
+        {
+            ref f=list.obj(files,i)
+            file=path.concat(@path_files_csv,field.str(f,"filename"))
+
+            do file.copy(field.str(f,"temp_file"),file)
+        }
+
+        if not(file.exists(file)){do rise_error(99,"Error al intentar subir el archivo.")}
+
+        filelog=""
+        switch tolower(action)
+	    {
+	    	case "otros"{}
+	    	default
+	    	{
+	    		if tolower(file.extension(file))!=".csv"
+	    		{
+	    			if file.exists(file){do file.delete(file)}
+	    			do rise_error(99,"tipo de archivo no soportado. "+file.extension(file))
+	    		}
+
+		        do execute.parse_csv(file)
+
+		    	ws=ifstr(@@(getData,"$ws")=="",uuid(),@@(getData,"$ws"))
+
+		    	filelog=path.concat(@path_files_logs,ws+".txt")
+		    	do file.wtext(filelog,getLog())
+	    	}	
+	    }
+        
+
+		using response
+		{
+			@"data":ifstr(filelog!="",file.name(filelog),filelog)
+		}
+		exception
+		{
+			using response
+			{
+				@"success":@false
+				@"message":last_error()
+			}
+		}
+	}
+}

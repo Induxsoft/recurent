@@ -1,0 +1,99 @@
+#include "dkli.dkh"
+#!
+module "rr"
+{
+	#include "functions.dkh"
+	#include "serialize.dkh"
+	#include "dbr.dkh"
+
+	do @context.begin(@crud_context)
+	ref @http_context=@("&http")
+	#include "website.dkl"
+
+	include @path_list_common
+
+	do check_permissions_administrative(@("&database"))
+
+	#$
+	#$
+	div(class="container-lg pt-1 ps-3 pe-3" style="background-color:#F5F5F5; min-height:94%;" id="container-ventas")
+	{
+		div(class="p-4 bg-white border-bottom" id="container-card" style="min-height:80vh")
+		{
+			div(class="d-flex align-items-center justify-content-end")
+			{
+				span(class="cgray" onclick="view.redirec('#<@RR_PLAN_MENSUAL>')")
+				{
+					$'<svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" fill="currentColor" class="bi bi-x-lg" viewBox="0 0 16 16">
+						<path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854Z"/>
+					</svg>'
+				}
+			}
+			
+			div(class="d-flex")
+			{$""
+				#!
+				if @isadmin
+				{
+					#$ a(class="btn btn-light btn-sm shadow-sm p-2 mb-2 bg-white" data="#<url_current>" href=".#<@_entity_type>_new/" id="btnAgregar"){i(class="fa fa-plus" style="color:#dc3545"){""}$"Agregar tipo plan"}
+				}
+				
+			}
+			hr(style="margin:10px"){}
+			div(class="grid-container" id="planes")
+			{
+					#!
+					for i=0;i<@count(@("&."))
+					{
+						ref itm=@item(@("&."),i)
+						#$
+						div(class="card bg-white shadow shadow-sm")
+						{
+							div(class="d-flex" id="dv-color_#<@@(itm,'sys_pk')>" style="padding-left: 1rem !important;padding-right: 1rem !important;")
+							{
+								div(class="flex-grow-1")
+								{
+									h6(class=""){$'#<@@(itm,"nombre")>'}
+								}
+							}
+							hr(style="margin: 0;"){$""}
+							div(class="card-body pointer" style="overflow:auto;display: flex;flex-direction: column;")
+							{
+								div(class="justify-items-center pointer flex-grow-1")
+								{
+									#!
+									meses=ifstr(@@(itm,'#meses')>0,@@(itm,'$meses')+ " Meses",@@(itm,'$meses')+ " Meses")
+									#$
+									smal{"#<meses>"}br{}
+									smal{"#<@@(itm,'mensualidad')> Por mes"}br{}
+									smal{"#<@@(itm,'anticipo')> Anticipo"}br{}
+									smal{"#<@@(itm,'divisa')>"}br{}
+								}
+								div(class="card-footer header-items-center" style="padding: 0; cursor: default;")
+								{$""
+									#!
+									if @isadmin
+									{
+										#$
+										$'<a class="" href=".#<@_entity_type>#<@@(itm,"sys_pk")>/" style="margin-right:5px;margin-left:5px;    text-decoration: none;">
+			                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pencil" viewBox="0 0 16 16">
+			                                  <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"></path>
+			                                </svg>
+			                            </a>
+			                            <a class="" href="#" style="margin-right:5px;margin-left:5px;color:red" onclick="model.deleteEntity(#<@@(itm,"sys_pk")>,event,\'#<@_entity_type>\')"">
+			                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16">
+			                                <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5Zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5Zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6Z"/>
+			                                <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1ZM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118ZM2.5 3h11V2h-11v1Z"/>
+			                              </svg>
+			                            </a>'
+									}
+									
+								}
+							}
+						}
+						
+					}
+				}
+		}
+	}
+}

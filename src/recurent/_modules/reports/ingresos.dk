@@ -1,0 +1,272 @@
+#include "dkli.dkh"
+#!
+module "ingresos"
+{
+	#include "functions.dkh"
+	#include "serialize.dkh"
+	#include "uielements.dkl"
+	#include "dbr.dkh"
+	do @context.begin(@crud_context)
+
+	ref @http_context=@("&http")
+	#include "website.dkl"
+	include @path_list_common
+
+	error=@("$error/message")
+
+	// first=not(field.exist(@("parameters"),"_finicio"))
+
+	inicio=ifstr(@("$parameters/_finicio")!="",@("$parameters/_finicio"),dbr.str(@("&database"),"SELECT DATE_FORMAT(NOW(),'%Y-%m-%d')",@null))
+	fin=ifstr(@("$parameters/_ffin")!="",@("$parameters/_ffin"),dbr.str(@("&database"),"SELECT DATE_FORMAT(date_add(NOW(),INTERVAL 1 day),'%Y-%m-%d')",@null))
+
+	@format="$ #,#.00"
+	cell_link_func::&params, &row, &cell
+    {
+        new headers
+        {
+            @"style":"position: sticky !important;top:0 !important;background-color:#fff;"
+        }
+        if @@(cell,"element")=="th"{cell<"attributes*">:headers}
+        // if @@(cell,"cell_type")!="data" &&  @@(cell,"cell_type")!="unknow" { return }
+        
+
+        importe=format(@@(row,"#importe"),@format)
+    	if @@(cell,"cell_type")=="summary"
+        {
+        	new attr
+        	{
+        		@"style":"color:black;font-weight: bold;text-align:right;"
+        	}
+        	cell<"attributes*">:attr
+        	// cell<"text">:importe
+        	// 
+        }
+        if @@(cell,"column")=="fecha"
+        {
+        	cell<"text">:@@(cell,"text") +"<br>"+@@(row,"usuario")
+        }
+        if @@(row,"$claveformapago")==""{return}
+        switch tolower(@@(row,"$claveformapago"))
+    	{
+    		case "01"
+			{
+				if @@(cell,"column")=="efectivo"
+				{
+    				cell<"text">:importe
+    				do uie.updateSummaryCol(params,"summaries/sum/efectivo",@@(row,"#importe"), "sum")
+				}
+			}
+    		case "04"
+			{
+				if @@(cell,"column")=="tcredito"
+				{
+					cell<"text">:importe
+					do uie.updateSummaryCol(params,"summaries/sum/tcredito",@@(row,"#importe"), "sum")
+				}
+			}
+    		case "03"
+			{
+				if @@(cell,"column")=="transferencia"
+				{
+					cell<"text">:importe
+					do uie.updateSummaryCol(params,"summaries/sum/transferencia",@@(row,"#importe"), "sum")
+				}
+			}
+    		case "28"
+			{
+				if @@(cell,"column")=="tdebito"
+				{
+					cell<"text">:importe
+					do uie.updateSummaryCol(params,"summaries/sum/tdebito",@@(row,"#importe"), "sum")
+				}
+			}
+    		case "quita"
+			{
+				if @@(cell,"column")=="quita"
+				{
+					cell<"text">:importe
+					do uie.updateSummaryCol(params,"summaries/sum/quita",@@(row,"#importe"), "sum")
+				}
+			}
+    		default
+			{
+				if @@(cell,"column")=="otros"
+				{
+					cell<"text">:importe
+					do uie.updateSummaryCol(params,"summaries/sum/otros",@@(row,"#importe"), "sum")
+				}
+			}
+    		
+    	}
+    	
+    }
+
+	#$
+	div(class="container-lg pt-1 ps-3 pe-3" style="background-color:#F5F5F5; min-height:94%;" id="container-ventas")
+	{
+		div(class="p-4 bg-white border-bottom" id="container-card" style="min-height:80vh")
+		{
+			div(class="d-flex align-items-center justify-content-end")
+			{
+				span(class="cgray" onclick="view.redirec('#<@RR_PLAN_MENSUAL>')")
+				{
+					$'<svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" fill="currentColor" class="bi bi-x-lg" viewBox="0 0 16 16">
+						<path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854Z"/>
+					</svg>'
+				}
+			}
+
+			style
+			{
+				$'
+					.table > thead>tr>th{padding:0}
+				'
+			}
+
+			h5(class="d-flex justify-content-center"){b{"Informe de ingresos por período"}}
+			div(class="card")
+			{
+				div(class="card-body")
+				{
+					div(class="d-flex")
+					{
+						div(class="row w-100 justify-content-center")
+						{
+							div(class="col-lg-3")
+							{
+								input(type="date" class="form-control form-control-sm" id="fechainicial" value="#<inicio>")		
+							}
+							div(class="col-lg-3")
+							{
+								input(type="date" class="form-control form-control-sm" id="fechafin" value="#<fin>")		
+							}
+							div(class="col-lg-2" style="width:auto")
+							{
+								button(class="btn btn-primary btn-sm" onclick="view.filterIngresos();"){"Aplicar"}		
+							}
+							
+						}
+						
+					}
+					div(class="d-flex justify-content-end")
+						{
+							button(class="btn btn-light btn-sm" onclick="window.print()"){"Imprimir"}
+						}
+					hr{""}
+					#!
+					@show_btn_add=@false
+					@table_attributes="table table-hover table-bordered-rigth"//table-bordered
+					@show_msj_data=@true
+					@txt_msg_data="Ningún dato encontrado en este período."
+					@styles="min-height:50vh;max-height:50vh;"
+					new @table_definition
+					{
+							@"datatable*":@("&.")
+	            			@"value_field":"sys_pk"
+	            			@"id":"table-bordered-rigth"
+	            			member @"columns"
+	            			{
+	            				// member @"formapago"
+	            				// {
+	            				// 	@"caption":"Forma de pago"
+	            				// }
+	            				member @"fecha"
+	            				{
+	            					@"caption":""
+	            				}
+	            				member @"importe"
+	            				{
+	            					@"caption":"Importe"
+	            					@"format":"$ #,#.00"
+	            					member @"attributes"
+	            					{
+	            						@"style":"text-align:right"
+	            					}
+	            					@"summary":"sum"
+	            				}
+	            				member @"divisa"
+	            				{
+	            					@"caption":"Divisa"
+	            				}
+	            				member @"efectivo"
+	            				{
+	            					@"caption":"Efectivo"
+	            					@"format":"$ #,#.00"
+	            					member @"attributes"
+	            					{
+	            						@"style":"text-align:right"
+	            					}
+	            					@"summary":"sum"
+	            				}
+	            				member @"tdebito"
+	            				{
+	            					@"caption":"T Débito"
+	            					@"format":"$ #,#.00"
+	            					member @"attributes"
+	            					{
+	            						@"style":"text-align:right"
+	            					}
+	            					@"summary":"sum"
+	            				}
+	            				member @"tcredito"
+	            				{
+	            					@"caption":"T Credito"
+	            					@"format":"$ #,#.00"
+	            					member @"attributes"
+	            					{
+	            						@"style":"text-align:right"
+	            					}
+	            					@"summary":"sum"
+	            				}
+	            				member @"transferencia"
+	            				{
+	            					@"caption":"Transferencia"
+	            					@"format":"$ #,#.00"
+	            					member @"attributes"
+	            					{
+	            						@"style":"text-align:right"
+	            					}
+	            					@"summary":"sum"
+	            				}
+	            				member @"quita"
+	            				{
+	            					@"caption":"Quita"
+	            					@"format":"$ #,#.00"
+	            					member @"attributes"
+	            					{
+	            						@"style":"text-align:right"
+	            					}
+	            					@"summary":"sum"
+	            				}
+	            				member @"otros"
+	            				{
+	            					@"caption":"Otros"
+	            					@"format":"$ #,#.00"
+	            					member @"attributes"
+	            					{
+	            						@"style":"text-align:right"
+	            					}
+	            					@"summary":"sum"
+	            				}
+	            				
+	            				member @"referencia"
+	            				{
+	            					@"caption":"Referencia"
+	            				}
+	            				// member @"usuario"
+	            				// {
+	            				// 	@"caption":"Usuario"
+	            				// }
+	            				// member @"notas"
+	            				// {
+	            				// 	@"caption":"Notas"
+	            				// }
+	            			}
+					}
+					do tableGlobalDefinition()
+				}
+			}
+		}
+	}
+	
+}

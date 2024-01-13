@@ -1,0 +1,142 @@
+#include "dkli.dkh"
+#!
+module "setting"
+{
+	#include "functions.dkh"
+	#include "serialize.dkh"
+	#include "dbr.dkh"
+	#include "uielements.dkl"
+	do @context.begin(@crud_context)
+	ref @http_context=@("&http")
+	#include "website.dkl"
+	include @path_list_common
+
+	error=@("$error/message")
+
+	globalvar=dbr.str(@("&database"),"select * from globalvar where VarName=1",@null)
+
+	@admin=dbr.str(@("&database"),"select VarValue from globalvar where VarName='rr_gpo_administradores' ",@null)
+	@opera=dbr.str(@("&database"),"select VarValue from globalvar where VarName='rr_gpo_operadores' ",@null)
+
+	exception
+	{
+		if file.exists(@path_filesql)
+		{
+			do dbr.execute(@("&database"),file.rtext(@path_filesql),@null)
+		}
+		exception{error=error+"\n"+last_error()}
+
+		error=error
+	}
+	
+	ref listTeams = ifnull(@("&./list_teams"),list.create())
+
+	new sel_administradores
+    {
+        @"datatable*": listTeams
+        @"id": "sadministradores"
+        new member "attributes"
+        {
+            @"class": "form-select form-select-sm rounded-0"
+            @"name": "admin"
+        }
+        @"value_field": "id"
+        @"text_field": "name"
+		@"first_value": "owner"
+		@"first_text": "(El dueño)"
+        @"selected": ""
+    }
+
+	new sel_operadores
+    {
+        @"datatable*": listTeams
+        @"id": "soperadores"
+        new member "attributes"
+        {
+            @"class": "form-select form-select-sm rounded-0"
+            @"name": "opera"
+        }
+        @"value_field": "id"
+        @"text_field": "name"
+		@"first_value": "all"
+		@"first_text": "(Todos)"
+        @"selected": ""
+    }
+
+	// do rise_error(0,to.json(@("&.")))
+
+	#$
+	div(class="container-lg pt-1 ps-3 pe-3" style="background-color:#F5F5F5; min-height:94%;" id="container-ventas")
+	{
+		div(class="p-4 bg-white border-bottom" id="container-card" style="min-height:80vh")
+		{
+			div(class="d-flex align-items-center justify-content-end")
+			{
+				span(class="cgray" onclick="view.redirec('#<@RR_PLAN_MENSUAL>')")
+				{
+					$'<svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" fill="currentColor" class="bi bi-x-lg" viewBox="0 0 16 16">
+						<path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854Z"/>
+					</svg>'
+				}
+			}
+
+			hr{}
+			
+			div(class="#<ifstr(error!='','alert alert-danger','')>"){"#<error>"}
+			div(class="card " style="height:75%")
+			{
+				div(class="d-flex justify-content-center"){h4{"Configuración"}}
+				div(class="card-body" style="padding-top: 10rem;")
+				{
+					
+					div(class="d-flex justify-content-center")
+					{
+						
+						div(class="w-75 width-100")
+						{
+							div(class="row")
+							{
+								div(class="col-lg-4")
+								{
+									h4{"Administradores:"}
+								}
+								div(class="col-lg-8")
+								{
+									##
+									do uie.dbSelect(sel_administradores)
+									##
+								}
+								div(class="col-lg-4")
+								{
+									h4{"Operadores:"}
+								}
+								div(class="col-lg-8")
+								{
+									##
+									do uie.dbSelect(sel_operadores)
+									##
+								}
+							}
+							div(class="d-flex justify-content-end module-btns")
+							{
+								button(class="btn btn-primary btn-sm" onclick="model.saveSetting()"){"Aceptar"}
+							}
+						}
+					}
+				}
+				script
+				{
+					$'
+					model.adminuuid="#<@admin>";
+					model.operauuid="#<@opera>";
+
+					model.url_ws="#<@url_ws>";
+					model.ids="#<@@(@http_context,"session/user/ids")>";
+					model.workspace="#<@@(@http_context,"request/get/ws")>"
+					// model.getDataWorkspace();
+					'
+				}
+			}
+		}
+	}
+}
