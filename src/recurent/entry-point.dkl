@@ -177,18 +177,17 @@ module "Controller configs"
 	// para los servicios
 	if @@(@http_context,"$request/get/_program") == "_services"
 	{
-		switch @@(@http_context,"$request/get/_svc")
+		switch @@(@http_context,"$request/get/_entity_id")
 		{
 			case "upload-file"
 			{
 				include "_modules/upload.dkl"
 				return from.json(@@(@http_context,"$response/text"))
-				break
 			}
 			case "download-file"
 			{
 				include "_modules/download.dkl"
-				break
+				return
 			}
 		}
 	}

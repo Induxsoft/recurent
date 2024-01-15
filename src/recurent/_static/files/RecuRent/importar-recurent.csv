@@ -1,4 +1,0 @@
-id_contrato,tipo,cliente,objeto_contrato,contratacion,inicio,comision,anticipo,meses,mensualidad,divisa,renovable,autorenovable,cuota_renovacion,desc_pronto_pago,boni_pronto_pago,cargo_retraso,cuota_retraso,dias_pronto_pago,dias_pago_tardio,email,email1,telefono,telefono1,status,txt_clave1,txt_clave2,txt_clave3,txt_clave4,txt_clave5,req_clave1,req_clave2,req_clave3,req_clave4,req_clave5,clave1,clave2,clave3,clave4,clave5
-,1,1,para llevar el control de mis rentas,21/07/2023,10/06/2023,,,,$200.00,,true,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-,3,2,,12/06/2023,25/05/2023,,,,500,,,,,,,,,,,myemail@gmail.com,,,,,,,,,,,,,,,,,,,
-,1,3,,15/05/2023,08/06/2023,,,,"$1,200.00",,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,,

@@ -16,7 +16,7 @@ module "config"
 	//lenguaje por default que va colocado en el contenido html
 	@lang = "es-MX"
 	@path_root = ""
-	@path_web = ""
+	@path_web = "recurent/" // Establezca una ruta de ser necesario
 	@path_absolute = @path_root + @path_web
 	
 	//ruta de la plantilla default que ejecuta el body, contenido del html
@@ -52,12 +52,12 @@ module "config"
 
 	@name_file_importar = "importar-recurent.csv"
 
-	@svc_file_upload = "/!/recurent/_services/?_svc=upload-file"
-	@svc_file_download = "/!/recurent/_services/?_svc=download-file"
+	@svc_file_upload = "/!/recurent/_services/upload-file/"
+	@svc_file_download = "/!/recurent/_services/download-file/"
 
 	//* ======================================== [ _STATIC RESOURCES ]
 	// Archivo para importaciones (.csv) de ejemplo.
-	@file_rr_ex_download = "/$/recurent/files/RecuRent/importar-recurent.csv"
+	// @file_rr_ex_download = "/$/recurent/files/RecuRent/importar-recurent.csv"
 
 	//* ======================================== [ _PACKAGE ]
 	// Reportes
