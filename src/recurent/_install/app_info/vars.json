@@ -1,0 +1,25 @@
+[
+    {
+        "id": "rr",
+        "caption": "RecuRent",
+        "help": "Variables del paquete: rr",
+        "vars": [
+            {
+                "varname": "rr_gpo_administradores",
+                "vardefault": "",
+                "varvalue": "",
+                "varcaption": "Grupo admin",
+                "varhelp": "Grupo de administradores.",
+                "vartype": "string"
+            },
+            {
+                "varname": "rr_gpo_operadores",
+                "vardefault": "",
+                "varvalue": "",
+                "varcaption": "Grupo operador",
+                "varhelp": "Grupo de operadores.",
+                "vartype": "string"
+            }
+        ]
+    }
+]
