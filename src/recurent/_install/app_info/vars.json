@@ -1,24 +1,32 @@
 [
     {
-        "id": "rr",
-        "caption": "RecuRent",
-        "help": "Variables del paquete: rr",
+        "id": "recurent",
+        "caption": "Cobros recurrentes",
+        "help": "Variables del paquete: recurent",
         "vars": [
             {
                 "varname": "rr_gpo_administradores",
                 "vardefault": "",
                 "varvalue": "",
-                "varcaption": "Grupo admin",
+                "varcaption": "Grupo de administradores",
                 "varhelp": "Grupo de administradores.",
-                "vartype": "string"
+                "vartype": "string",
+                "varinput": 
+                {
+                    "control": "text"
+                }
             },
             {
                 "varname": "rr_gpo_operadores",
                 "vardefault": "",
                 "varvalue": "",
-                "varcaption": "Grupo operador",
+                "varcaption": "Grupo de operadores",
                 "varhelp": "Grupo de operadores.",
-                "vartype": "string"
+                "vartype": "string",
+                "varinput": 
+                {
+                    "control": "text"
+                }
             }
         ]
     }
