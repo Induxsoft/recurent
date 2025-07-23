@@ -42,8 +42,8 @@ module "setting"
         }
         @"value_field": "id"
         @"text_field": "name"
-		@"first_value": "owner"
-		@"first_text": "(El dueño)"
+		// @"first_value": "owner"
+		// @"first_text": "(El dueño)"
         @"selected": ""
     }
 

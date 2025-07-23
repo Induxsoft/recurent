@@ -3,10 +3,10 @@
 module "rr_tipo_movimiento.dk"
 {
 	#include "website.dkl"
+	
 	@keyfield="id"
 	@list_query="select * from #<@table_name>"
 	@read_query="select * from #<@table_name> where #<@keyfield>=@_entity_id limit 1;"
-
 	
 	function rr.create(&db,&params,&data)
 	{

@@ -145,9 +145,10 @@ module "lst"
 									id_contrato = @@(itm,"id_contrato")
 									new param { @"id_contrato":id_contrato }
 
-									ref db_token = dbr.open("Connections@induxsoft/pix@plazamundial")
-									ref contrato = dbr.rec(db_token, "SELECT * FROM tokens_api.token WHERE id = @id_contrato", param)
-									do dbr.close(db_token)
+									ref contrato = @null
+									// ref db_token = dbr.open("Connections@induxsoft/pix@plazamundial")
+									// ref contrato = dbr.rec(db_token, "SELECT * FROM tokens_api.token WHERE id = @id_contrato", param)
+									// do dbr.close(db_token)
 
 									if isnull(contrato) {#$ h6(class=""){$"#<id_contrato>"} #!}
 									else 

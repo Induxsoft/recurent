@@ -1,7 +1,7 @@
 #include "dkli.dkh"
 #!
 module "cliente.dk"
-{	
+{
 	where="@_entity_id "
 	// if @@(@http_context,"request/get/filter")!=""{where="@filter"}
 	@read_query = "select sys_pk, sys_guid, sys_recver, sys_timestamp, sys_dtcreated, sys_deleted, 

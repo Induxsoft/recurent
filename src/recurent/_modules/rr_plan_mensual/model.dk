@@ -22,11 +22,11 @@ module "rr_plan_mensual.dk"
  	FROM  rr_plan_mensual rr
 	INNER JOIN rr_tipo_plan_mensual rrt ON rr.ref_tipo=rrt.sys_pk
 	INNER JOIN cliente c ON rr.ref_cliente=c.Sys_PK
-	WHERE IFNULL(rr.`status`,0)=1 HAVING saldovencido>0 ORDER BY rr.sys_dtcreated desc LIMIT 20 " //antes ORDER BY rr.sys_dtcreated,saldovencido
+	WHERE NOT IFNULL(rr.sys_deleted,0) AND IFNULL(rr.`status`,0)=1 HAVING saldovencido>0 ORDER BY rr.sys_dtcreated desc LIMIT 20 " //antes ORDER BY rr.sys_dtcreated,saldovencido
 
 	sql_borradores="SELECT rr.*,rrt.nombre,c.Nombre cliente,0 vencidos,0 saldovencido,0 saldototal FROM  rr_plan_mensual rr
 	INNER JOIN rr_tipo_plan_mensual rrt ON rr.ref_tipo=rrt.sys_pk
-	INNER JOIN cliente c ON rr.ref_cliente=c.Sys_PK WHERE IFNULL(rr.`status`,0)=0 ORDER BY rr.sys_dtcreated desc  LIMIT 10"
+	INNER JOIN cliente c ON rr.ref_cliente=c.Sys_PK WHERE NOT IFNULL(rr.sys_deleted,0) AND IFNULL(rr.`status`,0)=0 ORDER BY rr.sys_dtcreated desc  LIMIT 10"
 
 	list_pk="SELECT rr.sys_pk
  	FROM  rr_plan_mensual rr
@@ -47,15 +47,29 @@ module "rr_plan_mensual.dk"
 	FROM  rr_plan_mensual rr
 	INNER JOIN rr_tipo_plan_mensual rrt ON rr.ref_tipo=rrt.sys_pk
 	INNER JOIN cliente c ON rr.ref_cliente=c.Sys_PK 
-	WHERE "+cumplidos_1_mes_mas+"
+	WHERE NOT IFNULL(rr.sys_deleted,0) AND "+cumplidos_1_mes_mas+"
 	and rr.sys_pk not in ("+list_pk+") ORDER BY rr.sys_dtcreated desc  LIMIT 10"
-
-	
 
 	if trim(@@(@http_context,"request/get/text_filter"))!=""
 	{
-		@list_query=@list_query + " where rr.id_contrato like '%@{text_filter}%' or  c.nombre like '%@{text_filter}%' or rrt.nombre like '%@{text_filter}%'  or rr.meses like '%@{text_filter}%' or rr.mensualidad like '%@{text_filter}%' or c.codigo like '%@{text_filter}%' or c.rfc like '%@{text_filter}%'
-		or rr.clave1 like '%@{text_filter}%' or rr.clave2 like '%@{text_filter}%' or rr.clave3 like '%@{text_filter}%' or rr.clave4 like '%@{text_filter}%' or rr.clave5 like '%@{text_filter}%' order by rr.status,rr.sys_dtcreated DESC"
+		@list_query = @list_query + "
+		where not ifnull(rr.sys_deleted,0)
+			and (rr.id_contrato like '%@{text_filter}%'
+				or c.nombre like '%@{text_filter}%'
+				or rrt.nombre like '%@{text_filter}%'
+				or rr.meses like '%@{text_filter}%'
+				or rr.mensualidad like '%@{text_filter}%'
+				or c.codigo like '%@{text_filter}%'
+				or c.rfc like '%@{text_filter}%'
+				or rr.clave1 like '%@{text_filter}%'
+				or rr.clave2 like '%@{text_filter}%'
+				or rr.clave3 like '%@{text_filter}%'
+				or rr.clave4 like '%@{text_filter}%'
+				or rr.clave5 like '%@{text_filter}%')
+		order by
+			rr.status,
+			rr.sys_dtcreated DESC
+		"
 	}
 	else
 	{
@@ -64,8 +78,8 @@ module "rr_plan_mensual.dk"
 					SELECT * FROM("+sql_borradores+")b
 					UNION all
 					SELECT * FROM("+sql_vigentes_sin_vencidos+")c"
-		// do rise_error(00,@list_query)
 	}
+
 	@read_query="SELECT #<@sys_fields>,rr.ref_tipo,date_format(rr.contratacion,'%Y-%m-%d')contratacion,
 			rr.mensualidad,rr.comision,rr.anticipo,rr.monto,rr.renovable,rr.autorenovable,date_format(rr.inicio,'%Y-%m-%d')inicio,date_format(rr.fin,'%Y-%m-%d')fin,rr.ref_cliente,rr.id_contrato,
 			rr.objeto_contrato,rr.cuota_renovacion,rr.desc_pronto_pago,rr.boni_pronto_pago,rr.meses,rr.cargo_retraso,rr.cuota_retraso,
