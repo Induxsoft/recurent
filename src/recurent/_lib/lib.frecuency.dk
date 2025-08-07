@@ -1,0 +1,136 @@
+#include "dkli.dkh"
+
+#!
+module ":frecuency"
+{
+    #include "functions.dkh"
+    #include "serialize.dkh"
+
+    do _map_function(-1,"System.DateTime","AddDays","adddays", "System.Double","*")
+    do _map_function(-1,"System.DateTime","AddMonths","addmonths", "System.Int32","*")
+        
+    
+    /*
+    Parámetros:
+        a=Año, m=Mes, d=Día, i=Intervalo, p=Parcialidades
+        i:
+            0=Día
+            1=Semana natural 
+            2=Decena natural
+            3=Quincena natural
+            4=Mes
+            5=Bimestre
+            6=Trimestre
+            7=Cuatrimestre
+            8=Semestre
+            9=Año
+            10=3 Decenas por mes
+            11=2 Quincenas por mes
+    */
+
+    vencimientos::a, m, d, i, p
+    {
+        ref f_list=list.create()
+
+        if i==10
+        {
+            //Ajustar fecha del primer pago a la decena próxima más cercana
+            d=prox_decena(a,m,d)
+        }
+
+        if i==11
+        {
+            //Ajustar fecha del primer pago a la quincena próxima más cercana
+            d=prox_quincena(a,m,d)
+        }
+
+        ref f=str2dt(format(a,"0000")+"-"+format(m,"00")+"-"+ format(d,"00"))
+
+        do list.add(f_list,f)
+
+        for z=1;z<p
+        {
+            if i<4
+            {
+                m=1
+                if i==1 { m=7} if i==2{m=10} if i==3{m=15}
+                ref f=_invoke(f,"adddays",m)
+                do list.add(f_list,f)
+            }
+            else if i>=4 && i<10
+            {
+                m=i-3
+                if i==8 { m=6} if i==9 { m=12 }
+                do list.add(f_list,_invoke(f,"addmonths",m*z))
+            }
+            else if i==10 //3 decenas por mes
+            {
+                if d==10 { d=20 }
+                else if d==20 { d=ult_dia_mes(a,m)}
+                else 
+                {
+                     d=10
+                     m=m+1
+                     if m>12 
+                     { 
+                        m=1 
+                        a=a+1
+                     }
+                }
+                do list.add(f_list,str2dt(format(a,"0000")+"-"+format(m,"00")+"-"+ format(d,"00")))
+            }
+            else if i==11 //2 quincenas por mes
+            {
+                if d==15 { d=ult_dia_mes(a,m) }
+                else 
+                {
+                     d=15
+                     m=m+1
+                     if m>12 
+                     { 
+                        m=1 
+                        a=a+1
+                     }
+                }
+                do list.add(f_list,str2dt(format(a,"0000")+"-"+format(m,"00")+"-"+ format(d,"00")))
+            }
+        }
+
+        return f_list
+    }
+
+    prox_decena::a,m,d
+    {
+        if d<=10 { d=10}
+        else if d>10 && d<=20 { d=20}
+        else { d=ult_dia_mes(a,m) }
+
+        return d
+    }
+
+    prox_quincena::a,m,d
+    {
+        if d<=15 { d=15}
+        else { d=ult_dia_mes(a,m) }
+
+        return d
+    }
+
+    ult_dia_mes::ano,mes
+    {
+        if mes <1 || mes >12 { do rise_erro(0,"El mes debe estar entre 1 y 12") }
+
+        if mes==2
+        {
+            return if ( (mod(ano,4)==0 && mod(ano,100)!=0) || (mod(ano,400)==0),29,28)
+        }
+        else if mes==4 || mes==6 || mes==9 || mes==11 { return 30 }
+
+        return 31
+    }
+
+    // ref l=vencimientos(2025,08,06,3,2)
+    // ref l=vencimientos(2025,1,31,10,25)
+    // do print(to.json(l))
+    
+}

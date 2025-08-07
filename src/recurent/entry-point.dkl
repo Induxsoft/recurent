@@ -8,11 +8,13 @@ module "Controller configs"
 	#include "dbr.dkh"
 	#include "ws.api.dkl"
 	#include "website.dkl"
+	#include "_lib/lib.frecuency.dk"
 	#include "crudl/crudl.dk"
 	#include "linux-fixes.dkh"
 
 	if @@(@http_context,"$session/user/ids") == "" {
-		@http_context<"response/headers/location"> : "/"
+		if file.exists("webshell/lost.dk") { include "webshell/lost.dk" }
+		else { @http_context<"response/headers/location"> : "/" }
 		return
 	}
 
@@ -124,11 +126,11 @@ module "Controller configs"
 	if _entities_type!=@@(@http_context,"$request/get/_program"){@http_context<"request/get/_entity_id">:""}
 
 	do crudl.routes.pattern("/_program/")
-	do crudl.routes.entity("rr_plan_mensual",_entities_type)
-	do crudl.routes.entity("rr_plan_mensual_cardex",_entities_type)
-	do crudl.routes.entity("rr_plan_mensual_pago",_entities_type)
+	do crudl.routes.entity("rr_plan",_entities_type)
+	do crudl.routes.entity("rr_plan_cardex",_entities_type)
+	do crudl.routes.entity("rr_plan_pago",_entities_type)
 	do crudl.routes.entity("rr_tipo_movimiento",_entities_type)
-	do crudl.routes.entity("rr_tipo_plan_mensual",_entities_type)
+	do crudl.routes.entity("rr_tipo_plan",_entities_type)
 	
 	do crudl.routes.entity("_common",_entities_type)
 	do crudl.routes.entity("cliente",_entities_type)
@@ -145,7 +147,7 @@ module "Controller configs"
 
 	@form_view="form.dk"
 
-	@error_view="last_error.dk"
+	@error_view="error.dk"
 
 	@entity_id_blank="_new"
 

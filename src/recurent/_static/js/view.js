@@ -24,11 +24,12 @@ var view=
 		if(view.txtfiltro_refclient)view.txtfiltro_refclient.addEventListener("click",function(){
 			view.showModal('#modalclientes');
 		});
-			view.finicio=document.querySelector("#inicio");
-			if(view.finicio)view.finicio.addEventListener("change",function(){
-				if(!op.meses)return;
-				 view.calFechaFin(Number(op.meses.value));
-			});
+
+		view.finicio=document.querySelector("#inicio");
+		if(view.finicio)view.finicio.addEventListener("change",function(){
+			if(!op.meses)return;
+				view.calFechaFin(Number(op.meses.value));
+		});
 
 	},
 
@@ -37,6 +38,9 @@ var view=
 		var divisa=data.divisa ?? "";
 		var dest=document.querySelector("#fields-adic");
 		if(dest && onlykeyup)dest.innerHTML="";
+		
+		let text_frecuency=document.getElementById("text_frecuency");
+		if(text_frecuency)text_frecuency.innerText=data.frecuencia??"";
 
 		for(var key in data)
 		{
@@ -57,16 +61,17 @@ var view=
 					op.keyup(elem,'#dv-cuota_apertura',divisa);
 				else if(key=="anticipo")
 					op.keyup(elem,'#dv-anticipo',divisa);
-				else if(key=="meses")
+				else if(key=="cantidad_pagos")
 					op.keyup(elem,'#dv-meses',divisa);
-				else if(key=="mensualidad")
+				else if(key=="pago_recurrente")
 					op.keyup(elem,'#dv-mensualidad',divisa);
 				else if(key=="monto")
 					op.keyup(elem,'#dv-monto',divisa);
 			}
 			if(!onlykeyup)continue;
 
-			if(key=="meses" && !desdebd){
+			if(key=="cantidad_pagos" && !desdebd)
+			{
 				view.calFechaFin(data[key]);
 			}
 
@@ -123,29 +128,19 @@ var view=
 	{
 		if(!view.finicio)view.finicio=document.querySelector("#inicio");
 		if(!view.ffin)view.ffin=document.querySelector("#fin");
+		let cantidad_pagos=document.getElementById("cantidad_pagos");
+		
 		if(view.finicio)
 		{
 			if(view.finicio.value=="")return;
 			var mes=meses-1;
-			// var dt=new Date(view.finicio.value);
 			
-			// dt.setMonth(dt.getMonth() + mes);
-
-			// var iso=view.getLocalDateString(dt);
-			// console.log(iso)
-			// var v=new Date(iso);
-			// var day=v.getDate();
-			// var month=v.getMonth();
-			// var m=moment(dt);
-			// console.log(m)
-			// if(day<10)day="0"+day;
-			// if(month<10)month="0"+month;
-
-			// var fmt=v.getFullYear()+"-" + month+"-" + day;
-			// console.log(fmt)
-			// let dateFormated = dt.toISOString().slice(0,10);
-			
-			if(view.ffin)view.ffin.value=moment(view.finicio.value).add(mes, 'month').format('yyyy-MM-DD');
+			model.GetLastVencimiento(view.finicio.value,cantidad_pagos.value,0,view.ref_tipo.value,
+			(data)=>
+			{
+				if(data && data.last_vencimiento)view.ffin.value=data.last_vencimiento;
+				else if(view.ffin)view.ffin.value=moment(view.finicio.value).add(mes, 'month').format('yyyy-MM-DD');
+			});
 		}
 	},
 	_calFechaFin_:function(meses,objinicio,objfin)

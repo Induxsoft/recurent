@@ -6,12 +6,14 @@ var op=
 	{
 		op.nombre=document.querySelector("#nombre");
 		op.anticipo=document.querySelector("#anticipo");
-		op.meses=document.querySelector("#meses");
-		op.mensualidad=document.querySelector("#mensualidad");
+		op.meses=document.querySelector("#cantidad_pagos");
+		op.mensualidad=document.querySelector("#pago_recurrente");
 		op.monto=document.querySelector("#monto");
 		op.renovable=document.querySelector("#renovable");
 		op.cuota_renovacion=document.querySelector("#cuota_renovacion");
 		op.autorenovable=document.querySelector("#autorenovable");
+        this.form_tipo_plan=document.getElementById("form_tipo_plan");
+        this.frecuency=document.getElementById("ref_rr_frecuencia");
 
         op.ref_tipo=document.querySelector("#ref_tipo");
 		if(op.renovable)
@@ -132,6 +134,12 @@ var op=
     },
     validate:function()
     {
+        if(op.frecuency && op.frecuency.value.trim()=="")
+        {
+            op.frecuency.focus();
+            util.messageBox("El campo frecuencia es requerido.");
+            return false;
+        }
     	if(op.nombre)
     	{
     		if(op.nombre.value=="")
@@ -146,7 +154,7 @@ var op=
     		if(Number(op.meses.value)<=0)
     		{
     			op.meses.focus();
-    			util.messageBox("El campo meses debe ser mayor a 0");
+    			util.messageBox("El campo cantidad de pagos debe ser mayor a 0");
     			return false;
     		}
     	}
@@ -155,7 +163,7 @@ var op=
     		if(Number(op.mensualidad.value)<=0)
     		{
     			op.mensualidad.focus();
-    			util.messageBox("El campo mensualidad debe ser mayor a 0");
+    			util.messageBox("El campo pago recurrente debe ser mayor a 0");
     			return false;
     		}
     	}
@@ -168,6 +176,9 @@ var op=
     			return false;
     		}
     	}
+        
+
+        return true;
     },
     keyup:function(ths,iddestino,simb="",ismonto=false)
     {
@@ -190,10 +201,11 @@ var op=
                 case "dv-cuota_apertura":html=`<td id="${iddestino.replace("dv-","lbl-")}">Cuota de apertura </td><td  style="text-align: end;"> <b>${value}</b></td>`; break;
                 case "dv-anticipo":html=`<td id="${iddestino.replace("dv-","lbl-")}">Anticipo </td><td style="text-align: end;"> <b>${value}</b></td>`; break;
                 case "dv-meses":
-                    html=`<td id="${iddestino.replace("dv-","lbl-")}">Meses</td><td style="text-align: end;"> <b>${ths.value}</b></td>`; 
+                    let frecuency=model.dataTipoPlan? model.dataTipoPlan.frecuencia:"Meses";
+                    html=`<td id="${iddestino.replace("dv-","lbl-")}">${frecuency}</td><td style="text-align: end;"> <b>${ths.value}</b></td>`; 
                     if(!view.desdebd)view.calFechaFin(Number(ths.value));
                     break;
-                case "dv-mensualidad":html=`<td id="${iddestino.replace("dv-","lbl-")}">Mensualidad ${view.htmlmensualidad ?? ""}</td><td style="text-align: end;"> <b>${value}</b></td>`; break;
+                case "dv-mensualidad":html=`<td id="${iddestino.replace("dv-","lbl-")}">Pago recurrente ${view.htmlmensualidad ?? ""}</td><td style="text-align: end;"> <b>${value}</b></td>`; break;
                 case "dv-monto":html=`<td id="${iddestino.replace("dv-","lbl-")}">Monto ${view.htmlmonto??""}</td><td style="text-align: end;"> <b>${value}</b></td>`; break;
             }
             if(dest)dest.innerHTML=`${html}`;

@@ -9,7 +9,7 @@ module "indes"
 		return
 	}
 	else {
-		@http_context<"response/headers/location"> : "/!/recurent/rr_plan_mensual/"
+		@http_context<"response/headers/location"> : "/!/recurent/rr_plan/"
 		return
 	}
 	

@@ -5,6 +5,7 @@ module "lst"
 	#include "functions.dkh"
 	#include "serialize.dkh"
 	#include "dbr.dkh"
+	#include "uielements.v12.dkl"
 	do @context.begin(@crud_context)
 	ref @http_context=@("&http")
 	#include "website.dkl"
@@ -23,305 +24,368 @@ module "lst"
 	do dir.ensure(@path_files_rr)
 	
 	@ws=@('parameters/ws')
-	#$
-	div(class="container-lg pt-1 ps-3 pe-3" style="background-color:#F5F5F5; min-height:94%;" id="container-ventas")
+
+	buttons::
 	{
-		div(class="p-4 bg-white border-bottom" id="container-card" style="min-height:80vh")
+		#!
+		if @isadmin
 		{
-			div(class="d-flex justify-content-end")
-			{$""
-				#!
-				if @isadmin
-				{
-					#$ span(class="" style="cursor:pointer;" title="Configuración" onclick="view.redirec('#<@RR_SETTINGS>')")
-					{
-						$'<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#888" class="bi bi-gear" viewBox="0 0 16 16"><path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492zM5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0z"></path><path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.377l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115l.094-.319z"></path></svg>'
-					}
-				}
-			}
-			div(class="d-flex justify-content-start w-100 div-form-search" id="div-form-search")
+			#$ span(class="" style="cursor:pointer;" title="Configuración" onclick="view.redirec('#<@RR_SETTINGS>')")
 			{
-				form(action="." method="GET" class="w-100")
-				{
-					div(class="d-flex justify-content-center gap-2 w-75 div-form-search" )
-					{
-						div(class="flex-grow-1 p-sm-b-10")
-						{
-							input(type="search" class="form-control form-control-sm" name="text_filter" value="#<@('parameters/text_filter')>" placeholder="Buscar...")
-						}
-						div(class="")
-						{
-							button(type="submit" class="btn btn-primary btn-sm d-flex gap-2 align-items-center btn-sm-center")
-							{
-								"Buscar"
-								$'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-search" viewBox="0 0 16 16"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"></path></svg>'
-							}
-						}
-						
-					}
-				}
-				span(class="d-flex")
-				{
-					"Informes: "
-					a(href="#<@RPT_COBRANZA>" style="padding-left: 5px;"){"Cobranza"}
-					span(style="padding-left: 5px;padding-right: 5px;"){"|"}
-					a(href="#<@RPT_INGRESOS>?_finicio=#<inicio>&_ffin=#<fin>"){"Ingresos"}
-				}
-								
+				$'<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#888" class="bi bi-gear" viewBox="0 0 16 16"><path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492zM5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0z"></path><path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.377l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115l.094-.319z"></path></svg>'
 			}
-			
-			hr{}
-			
-			div(class="d-flex" id="container-btnd-act")
-			{
-				#$ a(class="btn btn-light btn-sm shadow-sm p-2 mb-2 bg-white d-flex align-items-center" href="#<@RR_PLAN_MENSUAL>_new/" id="btnAgregar"){i(class="fa fa-plus" style="color:#dc3545"){""}$"Agregar plan"}
-
-				#$ button(class="btn btn-light btn-sm shadow-sm p-2 mb-2 bg-white d-flex"  id="btnimportar" onclick="view.showModal('#modaluploadfile')")
-				{
-					$'<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-cloud-arrow-up" viewBox="0 0 16 16">
-					  <path fill-rule="evenodd" d="M7.646 5.146a.5.5 0 0 1 .708 0l2 2a.5.5 0 0 1-.708.708L8.5 6.707V10.5a.5.5 0 0 1-1 0V6.707L6.354 7.854a.5.5 0 1 1-.708-.708l2-2z"/>
-					  <path d="M4.406 3.342A5.53 5.53 0 0 1 8 2c2.69 0 4.923 2 5.166 4.579C14.758 6.804 16 8.137 16 9.773 16 11.569 14.502 13 12.687 13H3.781C1.708 13 0 11.366 0 9.318c0-1.763 1.266-3.223 2.942-3.593.143-.863.698-1.723 1.464-2.383zm.653.757c-.757.653-1.153 1.44-1.153 2.056v.448l-.445.049C2.064 6.805 1 7.952 1 9.318 1 10.785 2.23 12 3.781 12h8.906C13.98 12 15 10.988 15 9.773c0-1.216-1.02-2.228-2.313-2.228h-.5v-.5C12.188 4.825 10.328 3 8 3a4.53 4.53 0 0 0-2.941 1.1z"/>
-					</svg>'
-					$"Importar archivo"
-				}
-				span(class="flex-grow-1"){$""}
-
-				a(class="btn btn-light btn-sm shadow-sm p-2 mb-2 bg-white d-flex align-items-center" href="./")
-				{
-					$'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-clockwise" viewBox="0 0 16 16">
-						<path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/>
-						<path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/>
-					</svg>'
-					$"Actualizar"
-				}
-				a(class="btn btn-light btn-sm shadow-sm p-2 mb-2 bg-white d-flex" href="#<@RR_TIPO_MOVIMIENTO>" id="btnConceptos")
-				{
-					$'<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-clipboard2-minus" viewBox="0 0 16 16">
-					  <path d="M9.5 0a.5.5 0 0 1 .5.5.5.5 0 0 0 .5.5.5.5 0 0 1 .5.5V2a.5.5 0 0 1-.5.5h-5A.5.5 0 0 1 5 2v-.5a.5.5 0 0 1 .5-.5.5.5 0 0 0 .5-.5.5.5 0 0 1 .5-.5h3Z"/>
-					  <path d="M3 2.5a.5.5 0 0 1 .5-.5H4a.5.5 0 0 0 0-1h-.5A1.5 1.5 0 0 0 2 2.5v12A1.5 1.5 0 0 0 3.5 16h9a1.5 1.5 0 0 0 1.5-1.5v-12A1.5 1.5 0 0 0 12.5 1H12a.5.5 0 0 0 0 1h.5a.5.5 0 0 1 .5.5v12a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5v-12Z"/>
-					  <path d="M6 8a.5.5 0 0 0 0 1h4a.5.5 0 0 0 0-1H6Z"/>
-					</svg>'
-					$"Conceptos"
-				}
-				a(class="btn btn-light btn-sm shadow-sm p-2 mb-2 bg-white d-flex" href="#<@RR_TIPO_PLAN_MENSUAL>" id="btnAgregartipoplan")
-				{
-					$'<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-file-text" viewBox="0 0 16 16">
-					  <path d="M5 4a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1H5zm-.5 2.5A.5.5 0 0 1 5 6h6a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5zM5 8a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1H5zm0 2a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1H5z"/>
-					  <path d="M2 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2zm10-1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1z"/>
-					</svg>'
-					$"Tipos de planes"
-				}	
-			}
-			hr(style="margin: 10px;"){}
-			#$
-			div(class="table-responsive" style="max-height:72vh" )
-			{
-				div(class="grid-container" id="planes")
-				{
-					#!
-					for i=0;i<@count(@("&."))
-					{
-						ref itm=@item(@("&."),i)
-						status=""
-						istatus=@@(itm,"#status")
-						for l=0;l<@count(lstatus)
-						{
-							ref im=@item(lstatus,l)
-							if @@(im,"#id")==istatus
-							{
-								status=@@(im,"const")
-								break
-							}
-						}
-						sys_pk=@@(itm,"sys_pk")
-						#$
-						div(class="card bg-white shadow shadow-sm" data="")
-						{
-							div(class="d-flex" id="dv-color_#<@@(itm,'sys_pk')>" style="padding-left: 1rem !important;padding-right: 1rem !important;")
-							{
-								div(class="flex-grow-1 w-50")
-								{
-									#!
-									id_contrato = @@(itm,"id_contrato")
-									new param { @"id_contrato":id_contrato }
-
-									ref contrato = @null
-									// ref db_token = dbr.open("Connections@induxsoft/pix@plazamundial")
-									// ref contrato = dbr.rec(db_token, "SELECT * FROM tokens_api.token WHERE id = @id_contrato", param)
-									// do dbr.close(db_token)
-
-									if isnull(contrato) {#$ h6(class=""){$"#<id_contrato>"} #!}
-									else 
-									{ 
-										#$ a(href="https://intranet.induxsoft.net/bizops/gestion/rentas/index.dkl?token_contrato=#<id_contrato>" target="_blank" class="text-decoration-none text-dark" title="Ir a contrato")
-										{
-											h6(class=""){$"#<id_contrato>"}
-										} 
-									}
-
-									// h6(class=""){$'#<@@(itm,"id_contrato")>'}
-								}
-								div(class="")
-								{
-									label(id="lbl_status_#<sys_pk>"){"#<status>"}
-								}
-							}
-							hr(style="margin: 0;"){$""}
-							div(class="card-body pointer" style="overflow:auto;display: flex;flex-direction: column;cursor:pointer" onclick="view.redirec('#<@RR_PLAN_MENSUAL_CARDEX>?_plan=#<sys_pk>&_cardex=1')")
-							{
-								div(class="justify-items-center pointer flex-grow-1")
-								{
-									#!
-									meses=ifstr(@@(itm,'#meses')>0,@@(itm,'$meses')+ " Meses",@@(itm,'$meses')+ " Meses")
-									#$
-									b{smal{"#<@@(itm,'cliente')>"}}br{}
-									smal{"#<@@(itm,'nombre')>"}br{}
-									smal{"#<meses>"}br{}
-
-									#!
-									clave1=@@(itm,"$clave1")
-									clave2=@@(itm,"$clave2")
-									clave3=@@(itm,"$clave3")
-									clave4=@@(itm,"$clave4")
-									clave5=@@(itm,"$clave5")
-
-									txtclave1=ifstr(@@(itm,"$txt_clave1")=="","",@@(itm,"$txt_clave1")+" : ")
-									txtclave2=ifstr(@@(itm,"$txt_clave2")=="","",@@(itm,"$txt_clave2")+" : ")
-									txtclave3=ifstr(@@(itm,"$txt_clave3")=="","",@@(itm,"$txt_clave3")+" : ")
-									txtclave4=ifstr(@@(itm,"$txt_clave4")=="","",@@(itm,"$txt_clave4")+" : ")
-									txtclave5=ifstr(@@(itm,"$txt_clave5")=="","",@@(itm,"$txt_clave5")+" : ")
-									
-									#!
-									if clave1!=""
-									{
-										#$ 
-										small(class="d-flex"){"#<txtclave1 + clave1>"}
-									}
-									#!
-									if clave2!=""
-									{
-										#$ 
-										small(class="d-flex"){"#<txtclave2 + clave2>"}
-									}
-									#!
-									if clave3!=""
-									{
-										#$ 
-										small(class="d-flex"){"#<txtclave3 + clave3>"}
-									}
-									#!
-									if clave4!=""
-									{
-										#$ 
-										small(class="d-flex"){"#<txtclave4 + clave4>"}
-									}
-									#!
-									if clave5!=""
-									{
-										#$ 
-										small(class="d-flex"){"#<txtclave5 + clave5>"}
-									}
-									smal{"#<format(@@(itm,'mensualidad'),'#,#.00')> Por mes"}br{}
-									
-									#!
-									saldovencido=@@(itm,'#saldovencido')
-									saldototal=@@(itm,'#saldototal')
-									if saldototal>0
-									{
-										#$
-										small{"Saldo total: "b{"#<format(saldototal,'#,#.00')+' '+ @@(itm,'divisa')>"}}br{}
-									}
-									#!
-									if saldovencido>0
-									{
-										#$
-										small{"Saldo vencido: " b(style="color:red"){"#<format(saldovencido,'#,#.00') +' '+ @@(itm,'divisa')>"}}
-									}
-									#!
-									contratacion=date_str(@@(itm,"&contratacion"),"dd-MM-yy")
-									inicio=date_str(@@(itm,"&inicio"),"dd-MM-yy")
-									fin=date_str(@@(itm,"&fin"),"dd-MM-yy")
-									#$
-									small(class="d-flex"){"#<contratacion+' / '+inicio +' / '+fin>"}
-									
-								}
-							}
-							div(class="card-footer header-items-center d-flex" style="padding: 0;padding-top: 5px; cursor: default;padding-left: 10px;padding-right: 10px;height:30px")
-							{$""
-									#!
-									
-									view=ftext('<svg style="color: #0d6efd;" id="view_#<sys_pk>" xmlns="http://www.w3.org/2000/svg" width="25" height="25" fill="currentColor" class="bi bi-eye" viewBox="0 0 16 16">
-									  <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"/>
-									  <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"/>
-									</svg>')
-
-									play=ftext('<a href="#" id="play_#<sys_pk>" onclick="model.actionControl(#<sys_pk>,event,\'#<@_entity_type>\')"><svg  style="color: #0d6efd;" xmlns="http://www.w3.org/2000/svg" width="25" style="cursor:pointer" height="25" fill="currentColor" class="bi bi-play" viewBox="0 0 16 16">
-									  <path d="M10.804 8 5 4.633v6.734L10.804 8zm.792-.696a.802.802 0 0 1 0 1.392l-6.363 3.692C4.713 12.69 4 12.345 4 11.692V4.308c0-.653.713-.998 1.233-.696l6.363 3.692z"/>
-									</svg></a>')
-
-					
-									spinner=ftext('<div class="d-flex justify-content-end d-none" id="spinner_#<sys_pk>">
-						                    <div class="induxsoftLoginFormSpinner" style="width: 20px !important;height: 20px !important;background: none;border-radius: 50px;border-top: none;" title="En proceso"  id="induxsoftLoginFormSpinner1"></div>
-						                </div>')
-
-									iconedit=' <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pencil" viewBox="0 0 16 16">
-		                                  <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"></path>
-		                                </svg>'
-
-		                              delete=ftext('<a class="" id="delete_#<@@(itm,"sys_pk")>" href="#" style="margin-right:5px;margin-left:5px;color:red;text-decoration: none;" onclick="model.deleteEntity(#<@@(itm,"sys_pk")>,event,\'#<@_entity_type>\')"">
-		                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16">
-		                                <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5Zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5Zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6Z"/>
-		                                <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1ZM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118ZM2.5 3h11V2h-11v1Z"/>
-		                              </svg>
-		                            </a>')
-									
-									canceldisplay="display:none"
-
-									edit=ftext('<a class="" id="edit_#<@@(itm,"sys_pk")>" href=".#<@_entity_type>#<@@(itm,"sys_pk")>/" style="margin-right:5px;margin-left:5px;text-decoration: none;">
-			                               #<iconedit>
-			                            </a>')
-									if istatus==1
-									{
-										play=""
-										iconedit=""
-										delete=""
-										canceldisplay=""
-										edit=""
-									}else if istatus==2
-									{
-										play=""
-										iconedit=""
-										delete=""
-										edit=""
-									}
-									else if istatus==3
-									{
-										play=""
-										iconedit=""
-										delete=""
-										edit=""
-									}
-
-									cancelar=ftext('<a href="#" style="#<canceldisplay>" id="cancel_#<sys_pk>" onclick="model.actionControl(#<sys_pk>,event,\'#<@_entity_type>\',\'cancelar\')"><span>Cancelar</span></a>')
-									#!
-									#$
-										$'
-			                            #<edit>
-			                            #<delete>
-			                            <span class="flex-grow-1"></span>
-
-			                            #<play>
-			                            #<spinner>
-			                            '
-								}
-						}
-						
-						#!
-					}
-				}
-			}
-			
 		}
+		#!
+	}
+	point buttons to buttons
+	new nav_config
+    {
+        @"title": "RecuRent"
+        @"buttons*": buttons
+        @"urlexit": "/"
+        @"jscurrentcontext": "getCurrentContext"
+    }
+	new fil_status
+    {
+        @"id": "fil_status"
+        @"datatable*": ifnull(@("&./status"),list.create())
+        @"text_field": "const"
+        @"value_field": "id"
+        @"selected": @("#parameters/fil_status")
+		@"first_text": "(Todos los estados)"
+        @"first_value": "-1"
+		new member @"attributes"
+        {
+            @"class": "induxsoft-form-select induxsoft-form-select-sm"
+            @"name": "fil_status"
+            @"onchange": "document.querySelector('#form-search').submit()"
+        }
+    }
+	new fil_tipo
+    {
+        @"id": "fil_tipo"
+        @"datatable*": ifnull(@("&./tipos"),list.create())
+        @"text_field": "nombre"
+        @"value_field": "sys_pk"
+        @"selected": @("#parameters/fil_tipo")
+		@"first_text": "(Todos los tipos)"
+        @"first_value": "-1"
+		new member @"attributes"
+        {
+            @"class": "induxsoft-form-select induxsoft-form-select-sm"
+            @"name": "fil_tipo"
+            @"onchange": "document.querySelector('#form-search').submit()"
+        }
+    }
+	#$
+	div(class="container-lg pt-1 ps-3 pe-3" style="background-color:#F5F5F5; min-height:94%;" id="view")
+	{
+		section(id="top_area" class="bg-white border-bottom")
+		{
+			#!
+            do uie.printV12FormBar(nav_config)
+            #$
+			div(class="ps-4 pe-4")
+			{
+				div(class="d-flex justify-content-start w-100 div-form-search gap-2" id="div-form-search")
+				{
+					form(action="." method="GET" class="w-100" id="form-search")
+					{
+						div(class="row gx-2 gy-2")
+						{
+							div(class="col-md-2")
+							{
+								#!
+								do uie.dbSelect(fil_tipo)
+								#$
+							}
+							div(class="col-md-2")
+							{
+								#!
+								do uie.dbSelect(fil_status)
+								#$
+							}
+							div(class="col-md-8")
+							{
+								div(class="flex-grow-1")
+								{
+									"filter-text"(
+										"id"="text_filter"
+										"text-field"="text_filter"
+										"placeholder"="Buscar..."
+										"form"="#form-search"
+										"value"="#<@('$parameters/text_filter')>"
+										"auto-submit"="true"
+										"class"="w-100"
+									){$""}
+								}
+							}
+						}
+						
+					}
+					span(class="d-flex align-items-center")
+					{
+						"Informes: "
+						a(href="#<@RPT_COBRANZA>" style="padding-left: 5px;"){"Cobranza"}
+						span(style="padding-left: 5px;padding-right: 5px;"){"|"}
+						a(href="#<@RPT_INGRESOS>?_finicio=#<inicio>&_ffin=#<fin>"){"Ingresos"}
+					}
+									
+				}
+				
+				hr{}
+				
+				div(class="d-flex" id="container-btnd-act")
+				{
+					#$ a(class="btn btn-light btn-sm shadow-sm p-2 mb-2 bg-white d-flex align-items-center" href="#<@RR_PLAN>_new/" id="btnAgregar"){i(class="fa fa-plus" style="color:#dc3545"){""}$"Agregar plan"}
+
+					#$ button(class="btn btn-light btn-sm shadow-sm p-2 mb-2 bg-white d-flex"  id="btnimportar" onclick="view.showModal('#modaluploadfile')")
+					{
+						$'<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-cloud-arrow-up" viewBox="0 0 16 16">
+						<path fill-rule="evenodd" d="M7.646 5.146a.5.5 0 0 1 .708 0l2 2a.5.5 0 0 1-.708.708L8.5 6.707V10.5a.5.5 0 0 1-1 0V6.707L6.354 7.854a.5.5 0 1 1-.708-.708l2-2z"/>
+						<path d="M4.406 3.342A5.53 5.53 0 0 1 8 2c2.69 0 4.923 2 5.166 4.579C14.758 6.804 16 8.137 16 9.773 16 11.569 14.502 13 12.687 13H3.781C1.708 13 0 11.366 0 9.318c0-1.763 1.266-3.223 2.942-3.593.143-.863.698-1.723 1.464-2.383zm.653.757c-.757.653-1.153 1.44-1.153 2.056v.448l-.445.049C2.064 6.805 1 7.952 1 9.318 1 10.785 2.23 12 3.781 12h8.906C13.98 12 15 10.988 15 9.773c0-1.216-1.02-2.228-2.313-2.228h-.5v-.5C12.188 4.825 10.328 3 8 3a4.53 4.53 0 0 0-2.941 1.1z"/>
+						</svg>'
+						$"Importar archivo"
+					}
+					span(class="flex-grow-1"){$""}
+
+					a(class="btn btn-light btn-sm shadow-sm p-2 mb-2 bg-white d-flex" href="#<@RR_TIPO_MOVIMIENTO>" id="btnConceptos")
+					{
+						$'<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-clipboard2-minus" viewBox="0 0 16 16">
+						<path d="M9.5 0a.5.5 0 0 1 .5.5.5.5 0 0 0 .5.5.5.5 0 0 1 .5.5V2a.5.5 0 0 1-.5.5h-5A.5.5 0 0 1 5 2v-.5a.5.5 0 0 1 .5-.5.5.5 0 0 0 .5-.5.5.5 0 0 1 .5-.5h3Z"/>
+						<path d="M3 2.5a.5.5 0 0 1 .5-.5H4a.5.5 0 0 0 0-1h-.5A1.5 1.5 0 0 0 2 2.5v12A1.5 1.5 0 0 0 3.5 16h9a1.5 1.5 0 0 0 1.5-1.5v-12A1.5 1.5 0 0 0 12.5 1H12a.5.5 0 0 0 0 1h.5a.5.5 0 0 1 .5.5v12a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5v-12Z"/>
+						<path d="M6 8a.5.5 0 0 0 0 1h4a.5.5 0 0 0 0-1H6Z"/>
+						</svg>'
+						$"Conceptos"
+					}
+					a(class="btn btn-light btn-sm shadow-sm p-2 mb-2 bg-white d-flex" href="#<@RR_TIPO_PLAN>" id="btnAgregartipoplan")
+					{
+						$'<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-file-text" viewBox="0 0 16 16">
+						<path d="M5 4a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1H5zm-.5 2.5A.5.5 0 0 1 5 6h6a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5zM5 8a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1H5zm0 2a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1H5z"/>
+						<path d="M2 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2zm10-1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1z"/>
+						</svg>'
+						$"Tipos de planes"
+					}	
+				}
+			}
+		}
+		section(id="work_area")
+		{
+			div(class="p-4 bg-white border-bottom" id="container-card" style="min-height:80vh")
+			{
+				#$
+				div(class="table-responsive" style="max-height:72vh" )
+				{
+					div(class="grid-container" id="planes")
+					{
+						#!
+						for i=0;i<@count(@("&./entity"))
+						{
+							ref itm=@item(@("&./entity"),i)
+							
+							ref frecuencia=@@(@rr_objeto_frecuencia,"&"+@@(itm,"$id_frc"))
+							status=""
+							istatus=@@(itm,"#status")
+							for l=0;l<@count(lstatus)
+							{
+								ref im=@item(lstatus,l)
+								if @@(im,"#id")==istatus
+								{
+									status=@@(im,"const")
+									break
+								}
+							}
+							sys_pk=@@(itm,"sys_pk")
+							#$
+							div(class="card bg-white shadow shadow-sm" data="")
+							{
+								div(class="d-flex" id="dv-color_#<@@(itm,'sys_pk')>" style="padding-left: 1rem !important;padding-right: 1rem !important;")
+								{
+									div(class="flex-grow-1 w-50")
+									{
+										#!
+										id_contrato = @@(itm,"id_contrato")
+										new param { @"id_contrato":id_contrato }
+
+										ref contrato = @null
+										// ref db_token = dbr.open("Connections@induxsoft/pix@plazamundial")
+										// ref contrato = dbr.rec(db_token, "SELECT * FROM tokens_api.token WHERE id = @id_contrato", param)
+										// do dbr.close(db_token)
+
+										if isnull(contrato) {#$ h6(class=""){$"#<id_contrato>"} #!}
+										else 
+										{ 
+											#$ a(href="https://intranet.induxsoft.net/bizops/gestion/rentas/index.dkl?token_contrato=#<id_contrato>" target="_blank" class="text-decoration-none text-dark" title="Ir a contrato")
+											{
+												h6(class=""){$"#<id_contrato>"}
+											} 
+										}
+
+										// h6(class=""){$'#<@@(itm,"id_contrato")>'}
+									}
+									div(class="")
+									{
+										label(id="lbl_status_#<sys_pk>"){"#<status>"}
+									}
+								}
+								hr(style="margin: 0;"){$""}
+								div(class="card-body pointer" style="overflow:auto;display: flex;flex-direction: column;cursor:pointer" onclick="view.redirec('#<@RR_PLAN_CARDEX>?_plan=#<sys_pk>&_cardex=1')")
+								{
+									div(class="justify-items-center pointer flex-grow-1")
+									{
+										#!
+										text_por=ifstr(trim(@@(frecuencia,"$text1"))!="",@@(frecuencia,"$text1"),@@(frecuencia,"$text"))
+										#$
+										b{smal{"#<@@(itm,'cliente')>"}}br{}
+										smal{"#<@@(itm,'nombre')> [#<@@(itm,'$frecuencia')>]"}br{}
+										smal{"#<@@(itm,'$cantidad_pagos')> #<@@(frecuencia,'$text')>"}br{}
+
+										#!
+										clave1=@@(itm,"$clave1")
+										clave2=@@(itm,"$clave2")
+										clave3=@@(itm,"$clave3")
+										clave4=@@(itm,"$clave4")
+										clave5=@@(itm,"$clave5")
+
+										txtclave1=ifstr(@@(itm,"$txt_clave1")=="","",@@(itm,"$txt_clave1")+" : ")
+										txtclave2=ifstr(@@(itm,"$txt_clave2")=="","",@@(itm,"$txt_clave2")+" : ")
+										txtclave3=ifstr(@@(itm,"$txt_clave3")=="","",@@(itm,"$txt_clave3")+" : ")
+										txtclave4=ifstr(@@(itm,"$txt_clave4")=="","",@@(itm,"$txt_clave4")+" : ")
+										txtclave5=ifstr(@@(itm,"$txt_clave5")=="","",@@(itm,"$txt_clave5")+" : ")
+										
+										#!
+										if clave1!=""
+										{
+											#$ 
+											small(class="d-flex"){"#<txtclave1 + clave1>"}
+										}
+										#!
+										if clave2!=""
+										{
+											#$ 
+											small(class="d-flex"){"#<txtclave2 + clave2>"}
+										}
+										#!
+										if clave3!=""
+										{
+											#$ 
+											small(class="d-flex"){"#<txtclave3 + clave3>"}
+										}
+										#!
+										if clave4!=""
+										{
+											#$ 
+											small(class="d-flex"){"#<txtclave4 + clave4>"}
+										}
+										#!
+										if clave5!=""
+										{
+											#$ 
+											small(class="d-flex"){"#<txtclave5 + clave5>"}
+										}
+										smal{"#<format(@@(itm,'#pago_recurrente'),'#,#.00')> Por #<text_por>"}br{}
+										
+										#!
+										saldovencido=@@(itm,'#saldovencido')
+										saldototal=@@(itm,'#saldototal')
+										if saldototal>0
+										{
+											#$
+											small{"Saldo total: "b{"#<format(saldototal,'#,#.00')+' '+ @@(itm,'divisa')>"}}br{}
+										}
+										#!
+										if saldovencido>0
+										{
+											#$
+											small{"Saldo vencido: " b(style="color:red"){"#<format(saldovencido,'#,#.00') +' '+ @@(itm,'divisa')>"}}
+										}
+										#!
+										contratacion=date_str(@@(itm,"&contratacion"),"dd-MM-yy")
+										inicio=date_str(@@(itm,"&inicio"),"dd-MM-yy")
+										fin=date_str(@@(itm,"&fin"),"dd-MM-yy")
+										#$
+										small(class="d-flex"){"#<contratacion+' / '+inicio +' / '+fin>"}
+										
+									}
+								}
+								div(class="card-footer header-items-center d-flex" style="padding: 0;padding-top: 5px; cursor: default;padding-left: 10px;padding-right: 10px;height:30px")
+								{$""
+										#!
+										
+										view=ftext('<svg style="color: #0d6efd;" id="view_#<sys_pk>" xmlns="http://www.w3.org/2000/svg" width="25" height="25" fill="currentColor" class="bi bi-eye" viewBox="0 0 16 16">
+										<path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"/>
+										<path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"/>
+										</svg>')
+
+										play=ftext('<a href="#" id="play_#<sys_pk>" onclick="model.actionControl(#<sys_pk>,event,\'#<@_entity_type>\')"><svg  style="color: #0d6efd;" xmlns="http://www.w3.org/2000/svg" width="25" style="cursor:pointer" height="25" fill="currentColor" class="bi bi-play" viewBox="0 0 16 16">
+										<path d="M10.804 8 5 4.633v6.734L10.804 8zm.792-.696a.802.802 0 0 1 0 1.392l-6.363 3.692C4.713 12.69 4 12.345 4 11.692V4.308c0-.653.713-.998 1.233-.696l6.363 3.692z"/>
+										</svg></a>')
+
+						
+										spinner=ftext('<div class="d-flex justify-content-end d-none" id="spinner_#<sys_pk>">
+												<div class="induxsoftLoginFormSpinner" style="width: 20px !important;height: 20px !important;background: none;border-radius: 50px;border-top: none;" title="En proceso"  id="induxsoftLoginFormSpinner1"></div>
+											</div>')
+
+										iconedit=' <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pencil" viewBox="0 0 16 16">
+											<path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"></path>
+											</svg>'
+
+										delete=ftext('<a class="" id="delete_#<@@(itm,"sys_pk")>" href="#" style="margin-right:5px;margin-left:5px;color:red;text-decoration: none;" onclick="model.deleteEntity(#<@@(itm,"sys_pk")>,event,\'#<@_entity_type>\')"">
+										<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16">
+											<path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5Zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5Zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6Z"/>
+											<path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1ZM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118ZM2.5 3h11V2h-11v1Z"/>
+										</svg>
+										</a>')
+										
+										canceldisplay="display:none"
+
+										edit=ftext('<a class="" id="edit_#<@@(itm,"sys_pk")>" href=".#<@_entity_type>#<@@(itm,"sys_pk")>/" style="margin-right:5px;margin-left:5px;text-decoration: none;">
+											#<iconedit>
+											</a>')
+										if istatus==1
+										{
+											play=""
+											iconedit=""
+											delete=""
+											canceldisplay=""
+											edit=""
+										}else if istatus==2
+										{
+											play=""
+											iconedit=""
+											delete=""
+											edit=""
+										}
+										else if istatus==3
+										{
+											play=""
+											iconedit=""
+											delete=""
+											edit=""
+										}
+
+										cancelar=ftext('<a href="#" style="#<canceldisplay>" id="cancel_#<sys_pk>" onclick="model.actionControl(#<sys_pk>,event,\'#<@_entity_type>\',\'cancelar\')"><span>Cancelar</span></a>')
+										#!
+										#$
+											$'
+											#<edit>
+											#<delete>
+											<span class="flex-grow-1"></span>
+
+											#<play>
+											#<spinner>
+											'
+									}
+							}
+							
+							#!
+						}
+					}
+				}
+				
+			}
+		}
+		
 
 		#$
 		//************************************************modal upload file****************************

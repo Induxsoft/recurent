@@ -1,6 +1,6 @@
 "id","title","shorttitle","icon16x16","href","_blank","appid","itemtype","req_context_item_id","act_type"
 
-"VB11","Agregar plan mensual","Agregar plan","","/!/recurent/rr_plan_mensual/_new/","0","recurent.rr_plan_mensual","DET033","0","action"
+"VB11","Agregar plan mensual","Agregar plan","","/!/recurent/rr_plan/_new/","0","recurent.rr_plan","DET033","0","action"
 
-"VB20","Tipos de plan mensual","Tipos de planes","","/!/recurent/rr_tipo_plan_mensual/","0","recurent.rr_tipo_plan_mensual","DET05A","0","action"
-"VB21","Agregar tipo de plan mensual","Agregar tipo de plan","","/!/recurent/rr_tipo_plan_mensual/_new/","0","recurent.rr_tipo_plan_mensual","DET05A","0","action"
+"VB20","Tipos de plan mensual","Tipos de planes","","/!/recurent/rr_tipo_plan/","0","recurent.rr_tipo_plan","DET05A","0","action"
+"VB21","Agregar tipo de plan mensual","Agregar tipo de plan","","/!/recurent/rr_tipo_plan/_new/","0","recurent.rr_tipo_plan","DET05A","0","action"

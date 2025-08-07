@@ -29,7 +29,7 @@ module "config"
 
 	@url_origin = "https://ws.induxsoft.net/"
 	@url_ws = "https://api.induxsoft.net/workspaces/"
-	@__entities_first = "rr_plan_mensual"
+	@__entities_first = "rr_plan"
 
 	@path_modules = path.concat(@path_web,"_modules")
 	@path_common = path.concat(@path_modules,"_common")
@@ -64,10 +64,55 @@ module "config"
 	@RPT_COBRANZA = "/!/recurent/reports/cobranza/"
 	@RPT_INGRESOS = "/!/recurent/reports/ingresos/"
 
-	@RR_PLAN_MENSUAL = "/!/recurent/rr_plan_mensual/"
-	@RR_PLAN_MENSUAL_CARDEX = "/!/recurent/rr_plan_mensual_cardex/"
-	@RR_PLAN_MENSUAL_PAGO = "/!/recurent/rr_plan_mensual_pago/"
+	@RR_PLAN = "/!/recurent/rr_plan/"
+	@RR_PLAN_CARDEX = "/!/recurent/rr_plan_cardex/"
+	@RR_PLAN_PAGO = "/!/recurent/rr_plan_pago/"
 	@RR_TIPO_MOVIMIENTO = "/!/recurent/rr_tipo_movimiento/"
-	@RR_TIPO_PLAN_MENSUAL = "/!/recurent/rr_tipo_plan_mensual/"
+	@RR_TIPO_PLAN = "/!/recurent/rr_tipo_plan/"
 	@RR_SETTINGS = "/!/recurent/setting/"
+
+	new @rr_objeto_frecuencia
+	{
+		member @"1" //semanal
+		{
+			@"text":"Semana(s)"
+			@"dias": 7
+		}
+		member @"2"//quicenal
+		{
+			@"text":"Quincena(s)"
+			@"dias": 15
+		}
+		member @"3"//mensual
+		{
+			@"text":"Meses"
+			@"text1":"Mes"
+			@"dias":"*"
+		}
+		member @"4"//Bimestral
+		{
+			@"text":"(2 meses)"
+			@"dias":"*"
+		}
+		member @"5"//Trimestral
+		{
+			@"text":"(3 meses)"
+			@"dias":"*"
+		}
+		member @"6"//Cuatrimestral
+		{
+			@"text":"(4 meses)"
+			@"dias":"*"
+		}
+		member @"7"//Semestral
+		{
+			@"text":"(6 meses)"
+			@"dias":"*"
+		}
+		member @"8"//Anual
+		{
+			@"text":"(1 año)"
+			@"dias":"*"
+		}
+	}
 }

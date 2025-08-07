@@ -1,0 +1,172 @@
+#include "dkli.dkh"
+#!
+module "rr_plan_cardex.dk"
+{
+	#include "website.dkl"
+
+	@sys_fields="rr.sys_pk,rr.sys_guid,rr.sys_dtcreated,rr.sys_timestamp,rr.sys_recver"
+
+	
+	@list_query="SELECT  #<@sys_fields>,
+	 rr.ref_plan,
+	 rr.tipo_movimiento,
+	 rr.concepto,
+	 date_format(rr.vencimiento,'%Y-%m-%d')vencimiento, 
+	 
+	 ROUND((rr.importe - "+@sql_descuento+" + "+@sql_recargo+" ),4)
+	 		importe_total,
+	 round(ifnull(rr.pagos,0),4) pagos,
+	 (ROUND((rr.importe - "+@sql_descuento+" + "+@sql_recargo+" ),4)
+		 - round(ifnull(rr.pagos,0),4) )
+	 		saldo
+ FROM rr_plan_cardex rr INNER JOIN rr_plan rrp ON rr.ref_plan=rrp.sys_pk where ifnull(rr.sys_deleted,0)=0 "
+
+	
+	@read_query="select *,(rr.importe - IFNULL(rr.descuento,0)+ IFNULL(rr.recargo,0))saldo,((rr.importe - IFNULL(rr.descuento,0)+ IFNULL(rr.recargo,0))- ifnull(rr.pagos,0))resto from #<@table_name> rr where #<@keyfield>=@_entity_id limit 1;"
+
+
+	rr.list::&db, &params
+	{
+		if @table_name=="" { @table_name=entity.safe_id(@@(params,"_entities_type")) }
+		ref plan=@null
+		if field.exist(params,"_cardex") || field.exist(params,"_plan")
+		{
+			@keyfield="ref_plan"
+			@ref_plan=@@(params,"_plan")
+			@list_query=@list_query + "	and #<@keyfield>="+@ref_plan
+
+			ref plan=dbr.rec(db,"SELECT rr.sys_pk,rr.sys_guid,rr.sys_dtcreated,rr.sys_timestamp,rr.ref_tipo,date_format(rr.contratacion,'%Y-%m-%d')contratacion,
+			rr.pago_recurrente,rr.comision,rr.anticipo,rr.monto,rr.renovable,rr.autorenovable,date_format(rr.inicio,'%Y-%m-%d')inicio,date_format(rr.fin,'%Y-%m-%d')fin,rr.ref_cliente,rr.id_contrato,
+			rr.objeto_contrato,rr.cuota_renovacion,rr.desc_pronto_pago,rr.boni_pronto_pago,rr.cantidad_pagos,rr.cargo_retraso,rr.cuota_retraso,
+			rr.divisa,rr.txt_clave1,rr.txt_clave2,rr.txt_clave3,rr.txt_clave4,rr.txt_clave5,rr.clave1,rr.clave2,rr.clave3,rr.clave4,rr.clave5,
+			rr.email,rr.email1,rr.telefono,rr.telefono1,rr.`status`,CONCAT('[',c.Codigo,'] ',c.Nombre) cliente,rt.nombre,
+			date_format(rr.fecha_renovacion,'%Y-%m-%d')fecha_renovacion,
+			date_format(rr.fecha_activacion,'%Y-%m-%d')fecha_activacion
+			FROM rr_plan rr INNER JOIN cliente c ON rr.ref_cliente=c.Sys_PK
+			INNER JOIN rr_tipo_plan rt ON rr.ref_tipo=rt.sys_pk where rr.sys_pk=@_plan limit 1;",params)
+		}
+
+		vencidos=@list_query + " AND rr.vencimiento<=NOW() ORDER BY rr.vencimiento, rr.sys_pk "
+
+		vigentes=@list_query +" AND rr.vencimiento>NOW() ORDER BY rr.vencimiento, rr.sys_pk "
+
+		new cardex
+		{
+			@"ultimo_vencimiento":dbr.str(db,@sql_ultimo_fechavencimiento,params)
+
+			@"totalvencidos":dbr.num(db,"SELECT ifnull(SUM(ROUND((rr.importe - "+@sql_descuento+" + "+@sql_recargo+" )-ifnull(rr.pagos,0),4)),0) saldo
+								FROM rr_plan_cardex rr INNER join rr_plan rrp on rr.ref_plan=rrp.sys_pk WHERE rr.ref_plan=@_plan AND DATE(rr.vencimiento)<=DATE(NOW());",params)
+
+			@"totalnextmensualidad":dbr.num(db,"SELECT (ROUND((rr.importe - "+@sql_descuento+" + "+@sql_recargo+" ),4)
+												 - round(ifnull(rr.pagos,0),4) ) saldo
+										 FROM rr_plan_cardex rr INNER JOIN rr_plan rrp ON rr.ref_plan=rrp.sys_pk 
+										  WHERE rr.ref_plan=@_plan AND DATE(rr.vencimiento)>DATE(NOW()) having saldo>0 ORDER BY rr.sys_pk LIMIT 1;",params)
+
+			@"saldototal":dbr.num(db,"SELECT ifnull(SUM(ROUND((rr.importe - "+@sql_descuento+" + "+@sql_recargo+" )-ifnull(rr.pagos,0),4)),0) saldo
+								FROM rr_plan_cardex rr INNER join rr_plan rrp on rr.ref_plan=rrp.sys_pk WHERE rr.ref_plan=@_plan",params)
+		}
+		if @@(params,"vw")!=""
+		{
+			using cardex
+			{
+				@"plan*":plan
+				@"pagos*":dbr.list(db,"SELECT rr.sys_pk,rr.sys_guid,rr.sys_dtcreated,rr.sys_timestamp,rr.formapago claveformapago,rr.importe,rr.divisa,
+							DATE_FORMAT(rr.fecha,'%Y-%m-%d')fecha,rr.usuario,DATE_FORMAT(rr.fecha_factura,'%Y-%m-%d')fecha_factura,
+							rr.id_factura,rr.referencia,rr.notas,rr.ref_plan,
+							ifnull((SELECT rf.valor FROM rr_formapago rf WHERE rf.clave=rr.formapago LIMIT 1),rr.formapago) formapago
+							FROM rr_plan_pago rr WHERE rr.ref_plan=@_plan ORDER BY rr.sys_dtcreated desc",params)
+				
+				
+			}
+		}
+		else
+		{
+			using cardex
+			{
+				@"plan*":plan
+				@"vencidos*":dbr.list(db,ftext(vencidos),params)
+				@"vigentes*":dbr.list(db,ftext(vigentes),params)
+			}
+		}
+		
+
+		return cardex
+	}
+
+	rr.cardex.invoke_webhook::&db,plan,&data
+	{
+		new p{@"plan":plan}
+
+		tipo=dbr.num(db,"select ref_tipo from rr_plan where sys_pk=@plan",p)
+		ref dtipo=getDataTipoPlan(db,tipo)
+
+		saldototal="SELECT ifnull(SUM(ROUND((rr1.importe - "+replace(@sql_descuento,"rr.","rr1.")+" + "+replace(@sql_recargo,"rr.","rr1.")+" )-ifnull(rr1.pagos,0),4)),0) saldo
+									FROM rr_plan_cardex rr1 INNER join rr_plan rrp on rr1.ref_plan=rrp.sys_pk WHERE rrp.ref_tipo=@tipo AND IFNULL(rrp.`status`,0)=1 and rrp.sys_pk=@plan"
+
+		saldosvencido="SELECT ifnull(SUM(ROUND((rr1.importe - "+replace(@sql_descuento,"rr.","rr1.")+" + "+replace(@sql_recargo,"rr.","rr1.")+" )-ifnull(rr1.pagos,0),4)),0) saldo
+									FROM rr_plan_cardex rr1 INNER join rr_plan rrp on rr1.ref_plan=rrp.sys_pk 
+									WHERE rrp.ref_tipo=@tipo AND DATE(rr1.vencimiento)<=DATE(NOW()) AND ifnull(rrp.`status`,0)=1 
+									and rrp.sys_pk=@plan"
+
+
+		p<"tipo">:tipo
+		new fields
+		{
+			@"id_plan":plan
+			@"saldo_vencido":dbr.num(db,saldosvencido,p)
+			@"saldo":dbr.num(db,saldototal,p)
+		}
+		ref dtmov=dbr.rec(db,"SELECT * from rr_tipo_movimiento where id=@tipo_movimiento",data)
+		new cargo
+		{
+			@"fecha":@@(data,"$sys_dtcreated")
+			@"idmovimiento":@@(dtmov,"$id")
+			@"movimiento":@@(dtmov,"const")
+			@"importe":@@(data,"#importe")
+			@"concepto":@@(data,"$concepto")
+		}
+		new npago
+		{
+			@"fields*":fields
+			@"cargo*":cargo
+		}
+		do invoke_webhook(@@(dtipo,"$webhook"),"cargo",npago)
+	}
+	rr.create::&db,&params,&data
+	{
+		if field.exist(data,"cargo"){do field.remove(data,"cargo")}
+		ref cargo=entity.create(db,params,data)
+		//invocar webhook de cargo******************************
+		do rr.cardex.invoke_webhook(db,@@(data,"ref_plan"),cargo)
+		//********************************************************
+		return cargo
+	}
+	rr.action::&db,&params
+	{
+		if parse.bool(@@(params,"_detail"))
+		{
+			ref data=entity.read(db,params)
+			new p{@"sys_pk":@@(data,"sys_pk")}
+			data<"detallespagos*">:dbr.list(db,"SELECT 
+				rrp.sys_pk,rrp.sys_guid,rrp.formapago claveformapago,date_format(rrp.fecha,'%Y-%m-%d')fecha_formad,rrp.importe,rrp.divisa,
+				rrp.fecha,rrp.usuario,rrp.fecha_factura,rrp.id_factura,rrp.notas,rrp.ref_plan,
+				ifnull((SELECT rf.valor FROM rr_formapago rf WHERE rf.clave=rrp.formapago LIMIT 1),rrp.formapago) formapago,rrcp.*
+				FROM rr_plan_cardex_pago rrcp INNER JOIN rr_plan_pago rrp ON rrcp.ref_pago=rrp.sys_pk
+				WHERE rrcp.ref_cardex=@sys_pk",p)
+			return data
+		}
+		
+		do recontruirSaldo(db,params)
+		
+		exception
+		{
+			do rise_error(99,last_error())
+		}
+
+		return params//entity.read(db,params)
+	}
+	
+	point @list	to rr.list
+	point @read to rr.action
+	point @create to rr.create
+}

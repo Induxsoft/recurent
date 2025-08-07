@@ -1,0 +1,78 @@
+#include "dkli.dkh"
+#!
+module "rr_tipo_plan.dk"
+{
+	@list_query="SELECT t.*,f.id id_frc,f.const frecuencia FROM rr_tipo_plan t 
+	INNER JOIN rr_frecuencia f ON t.ref_rr_frecuencia=f.id"
+
+	@read_query="SELECT t.*,f.id id_frc,f.const frecuencia FROM rr_tipo_plan t 
+	INNER JOIN rr_frecuencia f ON t.ref_rr_frecuencia=f.id
+	where t.sys_pk=@_entity_id"
+	#!
+	verifyFields::&data
+	{
+		if parse.bool(@@(data,"renovable")){data<"renovable">:1}
+		else{data<"renovable">:0}
+		if parse.bool(@@(data,"autorenovable")){data<"autorenovable">:1}
+		else{data<"autorenovable">:0}
+
+		//campos adicionales requeridas
+		if parse.bool(@@(data,"req_clave1")){data<"req_clave1">:1}
+		else{data<"req_clave1">:0}
+		if parse.bool(@@(data,"req_clave2")){data<"req_clave2">:1}
+		else{data<"req_clave2">:0}
+		if parse.bool(@@(data,"req_clave3")){data<"req_clave3">:1}
+		else{data<"req_clave3">:0}
+		if parse.bool(@@(data,"req_clave4")){data<"req_clave4">:1}
+		else{data<"req_clave4">:0}
+		if parse.bool(@@(data,"req_clave5")){data<"req_clave5">:1}
+		else{data<"req_clave5">:0}
+
+		if @@(data,"$pago_recurrente")==""{data<"pago_recurrente">:0}
+		if @@(data,"$cantidad_pagos")==""{data<"cantidad_pagos">:0}
+		if @@(data,"$anticipo")==""{data<"anticipo">:0}
+		if @@(data,"$monto")==""{data<"monto">:0}
+		if @@(data,"$comision")==""{data<"comision">:0}
+		if @@(data,"$cuota_renovacion")==""{data<"cuota_renovacion">:0}
+		if @@(data,"$desc_pronto_pago")==""{data<"desc_pronto_pago">:0}
+		if @@(data,"$boni_pronto_pago")==""{data<"boni_pronto_pago">:0}
+		if @@(data,"$cargo_retraso")==""{data<"cargo_retraso">:0}
+		if @@(data,"$cuota_retraso")==""{data<"cuota_retraso">:0}
+		if @@(data,"$dias_pronto_pago")==""{data<"dias_pronto_pago">:0}
+		if @@(data,"$dias_pago_tardio")==""{data<"dias_pago_tardio">:0}
+	}
+	verifyName::&db,&data
+	{
+		sql="select count(nombre) from rr_tipo_plan where nombre=@nombre"
+		if @@(data,"#sys_pk")>0{sql=sql + " and sys_pk<>@sys_pk"}
+
+		count=dbr.num(db,sql,data)
+
+		if count>0
+		{
+			do rise_error(99,"Ya existe un tipo de plan con el mismo nombre")
+		}
+	}
+	rr_tipo_plan.create::&db,&params,&data
+	{
+		do verifyName(db,data)
+		do verifyFields(data)
+		return entity.create(db,params,data)
+	}
+	rr_tipo_plan.update::&db,&params,&data
+	{
+		do verifyName(db,data)
+		do verifyFields(data)
+
+		return entity.update(db,params,data)
+	}
+	list::&db,&params
+	{
+	   ref entity= entity.list(db,params)
+	   return entity
+	}
+	
+	point @list to list
+	point @create to rr_tipo_plan.create
+    point @update to rr_tipo_plan.update
+}

@@ -43,6 +43,7 @@ program "instalador"
         "rr_formapago.csv",
         "rr_tipo_movimiento.csv",
         "status_plan.csv",
+        "rr_frecuencia.csv"
     ]')
 	// Lista de permisos iniciales
     ref permissions_to_import = from.json('[]')

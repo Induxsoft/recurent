@@ -112,13 +112,25 @@ model "erp.recurent"
     entity "status_plan" : "EnumModel" {}
     entity "rr_tipo_movimiento" : "EnumModel" {}
 
-    entity "rr_tipo_plan_mensual" : "TableModel"
+    entity "rr_frecuencia":"EnumModel"
+    {
+        // 0 mensual
+        // 1 semanal
+        // 2 trimestral
+        // 3 semestral
+        // 4 anual
+        // 5 bimestral 
+        // 6 cuatrimestral
+        // 7 quincenal
+    }
+  
+    entity "rr_tipo_plan" : "TableModel"
     {
         @"nombre" string(50)
         @"objeto_contrato" memo
-        @"meses" int
-        @"mensualidad" decimal(10,4)
-        @"comision" decimal(10,4)
+        @"cantidad_pagos" int //cantidad de pagos (meses)
+        @"pago_recurrente" decimal(10,4) //pago recurrente(mensualidad)
+        @"comision" decimal(10,4) 
         @"anticipo" decimal(10,4)
         @"monto" decimal(12,4)
         @"cuota_renovacion" decimal(10,4)
@@ -142,13 +154,14 @@ model "erp.recurent"
         @"webhook" string(1024)
         @"dias_pronto_pago" int
         @"dias_pago_tardio" int
+        @"ref_rr_frecuencia" ref:"rr_frecuencia" required
     }
 
-    entity "rr_plan_mensual" : "TableModel"
+    entity "rr_plan" : "TableModel"
     {
-        @"ref_tipo" int ref:"rr_tipo_plan_mensual" ["sys_pk"]
+        @"ref_tipo" int ref:"rr_tipo_plan" ["sys_pk"]
         @"contratacion" datetime 
-        @"mensualidad" decimal(10,4)
+        @"pago_recurrente" decimal(10,4)//pago recurrente (mensualidad)
         @"comision" decimal(10,4)
         @"anticipo" decimal(10,4)
         @"monto" decimal(12,4)
@@ -162,7 +175,7 @@ model "erp.recurent"
         @"cuota_renovacion" decimal(10,4)
         @"desc_pronto_pago" decimal(4,2) 
         @"boni_pronto_pago" decimal(10,4) 
-        @"meses" int
+        @"cantidad_pagos" int //cantidad de pagos (meses)
         @"cargo_retraso" decimal(4,2) 
         @"cuota_retraso" decimal(10,4)
         @"divisa" string(5)
@@ -195,9 +208,9 @@ model "erp.recurent"
         @"dias_pago_tardio" int
     }
 
-    entity "rr_plan_mensual_cardex" : "TableModel"
+    entity "rr_plan_cardex" : "TableModel"
     {
-        @"ref_plan" int ref:"rr_plan_mensual" ["sys_pk"]
+        @"ref_plan" int ref:"rr_plan" ["sys_pk"]
         @"tipo_movimiento" int ref:"rr_tipo_movimiento" ["id"]
         @"concepto" string(1024)
         @"vencimiento" datetime
@@ -210,7 +223,7 @@ model "erp.recurent"
         @"pagos" decimal(12,4)
     }
 
-    entity "rr_plan_mensual_pago": "TableModel"
+    entity "rr_plan_pago": "TableModel"
     {
         @"formapago" string(5)
         @"importe" decimal(12,4)
@@ -221,32 +234,32 @@ model "erp.recurent"
         @"id_factura"  string(36)
         @"referencia" string(50)
         @"notas" string(1024)
-        @"ref_plan" int ref:"rr_plan_mensual" ["sys_pk"]
+        @"ref_plan" int ref:"rr_plan" ["sys_pk"]
     }
 
-    entity "rr_plan_mensual_cardex_pago"
+    entity "rr_plan_cardex_pago"
     {
         @"sys_pk" int key required autoincrement
         @"fecha" datetime
-        @"ref_cardex" int ref:"rr_plan_mensual_cardex" ["sys_pk"]
-        @"ref_pago" int ref:"rr_plan_mensual_pago" ["sys_pk"]
+        @"ref_cardex" int ref:"rr_plan_cardex" ["sys_pk"]
+        @"ref_pago" int ref:"rr_plan_pago" ["sys_pk"]
         @"monto" decimal(12,4)
     }
 
-    entity "rr_plan_mensual_historial"
+    entity "rr_plan_historial"
     {
         @"sys_pk" int key required autoincrement
-        @"ref_plan" int ref:"rr_plan_mensual" ["sys_pk"]
+        @"ref_plan" int ref:"rr_plan" ["sys_pk"]
         @"fecha" datetime
-        @"mensual_cardex" memo
-        @"mensual_pago" memo
+        @"cardex" memo
+        @"pago" memo
         @"cardex_pago" memo
     }
 
-    entity "rr_plan_mensual_log"
+    entity "rr_plan_log"
     {
         @"sys_pk" int key required autoincrement
-        @"ref_plan" int ref:"rr_plan_mensual" ["sys_pk"]
+        @"ref_plan" int ref:"rr_plan" ["sys_pk"]
         @"usuario" string(255)
         @"nota" string(1024)
         @"operacion" string(255)

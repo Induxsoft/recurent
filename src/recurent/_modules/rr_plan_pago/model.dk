@@ -1,0 +1,110 @@
+#include "dkli.dkh"
+#!
+module "rr_plan_pago.dk"
+{
+	#include "website.dkl"
+	
+	rr.invokewebHook::&db,plan,&pago
+	{
+		new p{@"plan":plan}
+
+		tipo=dbr.num(db,"select ref_tipo from rr_plan where sys_pk=@plan",p)
+		ref dtipo=getDataTipoPlan(db,tipo)
+
+		saldototal="SELECT ifnull(SUM(ROUND((rr1.importe - "+replace(@sql_descuento,"rr.","rr1.")+" + "+replace(@sql_recargo,"rr.","rr1.")+" )-ifnull(rr1.pagos,0),4)),0) saldo
+									FROM rr_plan_cardex rr1 INNER join rr_plan rrp on rr1.ref_plan=rrp.sys_pk WHERE rrp.ref_tipo=@tipo AND IFNULL(rrp.`status`,0)=1 and rrp.sys_pk=@plan"
+
+		saldosvencido="SELECT ifnull(SUM(ROUND((rr1.importe - "+replace(@sql_descuento,"rr.","rr1.")+" + "+replace(@sql_recargo,"rr.","rr1.")+" )-ifnull(rr1.pagos,0),4)),0) saldo
+									FROM rr_plan_cardex rr1 INNER join rr_plan rrp on rr1.ref_plan=rrp.sys_pk 
+									WHERE rrp.ref_tipo=@tipo AND DATE(rr1.vencimiento)<=DATE(NOW()) AND ifnull(rrp.`status`,0)=1 and rrp.sys_pk=@plan"
+
+		ref dpago=record.copy(pago,"fecha,importe,divisa,notas")
+		evento="pago"
+		
+		if tolower(@@(pago,"$formapago"))=="quita"{evento="quita"}
+
+		p<"tipo">:tipo
+		new fields
+		{
+			@"id_plan":plan
+			@"saldo_vencido":dbr.num(db,saldosvencido,p)
+			@"saldo":dbr.num(db,saldototal,p)
+		}
+		new npago
+		{
+			@"fields*":fields
+			@"pago*":dpago
+		}
+
+		do invoke_webhook(@@(dtipo,"$webhook"),evento,npago)
+
+	}
+	rr.create::&db,&params,&data
+	{
+		ref dcreate=@null
+		@use_transaction=@false
+		if parse.bool(@@(data,"files"))
+		{
+			do saveFile(db,@@(data,"ref_plan"),"")
+			return data
+		}
+		do dbr.begin(db)
+			if @@(data,"usuario")==""{data<"usuario">:cut(@@(@http_context,"session/user/name"),50)}
+			if field.exist(data,"formapago"){data<"formapago">:cut(@@(data,"formapago"),5)}
+
+			syspk_cardex=@@(data,"syspk_cardex")
+			do field.remove(data,"syspk_cardex")
+			do field.remove(data,"pagar")
+			@use_transaction=@false
+			ref dcreate=entity.create(db,params,data)
+
+			do saveFile(db,@@(dcreate,"ref_plan"),@@(dcreate,"sys_pk"))
+
+			do aplicar_pago(db,@@(data,"ref_plan"),@@(dcreate,"sys_pk"),@@(data,"fecha"))
+			do rr.invokewebHook(db,@@(data,"ref_plan"),dcreate)
+		do dbr.commit(db)
+
+		exception
+		{
+			if dbr.in_transaction(db){do dbr.rollback(db)}
+			do rise_error(99,last_error())
+		}
+		return dcreate
+	}
+	rr.update::&db,&params,&data
+	{
+		return entity.update(db,params,data)
+	}
+
+	saveFile::&db,plan,pago
+	{	
+		ref files=@@(@http_context,"&request/files")
+		if @count(files)<1{return}
+
+		new p
+		{
+			@"plan":plan
+			@"pago":pago
+		}
+		sys_guid=dbr.str(db,"select sys_guid from rr_plan where sys_pk=@plan",p)
+		sys_pago=dbr.str(db,"select sys_guid from rr_plan_pago where sys_pk=@pago",p)
+
+		pathfile=path.concat(@path_files,sys_guid)
+		pathfile=path.concat(pathfile,sys_pago)
+
+		do dir.ensure(pathfile)
+
+		for i=0;i<@count(files)
+		{
+			if i>=10{break}
+
+			ref f=list.obj(files,i)
+			filep=file.name(field.str(f,"filename"))
+			path_savefile=path.concat(pathfile,filep)
+            do file.copy(field.str(f,"temp_file"),path_savefile)
+		}
+	}
+	
+	point @create to rr.create
+    point @update to rr.update
+}

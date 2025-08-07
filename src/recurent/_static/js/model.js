@@ -96,13 +96,26 @@ var model =
         util.messageBox(error.message ?? error);
       }, "DELETE", false);
   },
-  getTipoPlan: function (sys_pk) {
-    model.invoke_service("../../rr_tipo_plan_mensual/" + sys_pk, null,
+  getTipoPlan: function (sys_pk) 
+  {
+    model.invoke_service("../../rr_tipo_plan/" + sys_pk, null,
       function (data) {
         model.dataTipoPlan = data;
         view.loadDataTipoPlan(data);
       },
       function (error) {
+        util.messageBox(error.message ?? error);
+      }, "GET", false);
+  },
+  GetLastVencimiento(firstfecha,cantidadpago,frecuency,tipo,calllback)
+  {
+      model.invoke_service(`./?act=vencimiento&fecha=${firstfecha}&cantidad=${cantidadpago}&frecuency=${frecuency}&tipo=${tipo}`, null,
+      function (data) 
+      {
+        calllback(data);
+      },
+      function (error) 
+      {
         util.messageBox(error.message ?? error);
       }, "GET", false);
   },
@@ -137,8 +150,8 @@ var model =
           }
           if (act == "activar") {
             var rl = "";
-            if (ub_entity == "/") rl = "../rr_plan_mensual_cardex/?_plan=" + sys_pk + "&_cardex=1";
-            else { rl = "./rr_plan_mensual_cardex/?_plan=" + sys_pk + "&_cardex=1"; }
+            if (ub_entity == "/") rl = "../rr_plan_cardex/?_plan=" + sys_pk + "&_cardex=1";
+            else { rl = "./rr_plan_cardex/?_plan=" + sys_pk + "&_cardex=1"; }
             window.location.href = rl;
           }
           view.showhidecontrols(data.sys_pk, (data.status ?? 0));
@@ -194,7 +207,7 @@ var model =
       fdata.append(key, data[key]);
     }
 
-    model.invoke_service("../rr_plan_mensual_pago/", fdata,
+    model.invoke_service("../rr_plan_pago/", fdata,
       function (data) {
         if (data != null) {
           view.hideModal("#modalcobrar");
@@ -215,7 +228,7 @@ var model =
       cuota_renovacion: view.cuota_renovacion_modal.value,
       historial: true
     }
-    model.invoke_service("../rr_plan_mensual/" + sys_pk + "/?historial=1", data,
+    model.invoke_service("../rr_plan/" + sys_pk + "/?historial=1", data,
       function (data) {
         if (data != null) {
           window.location.reload();
@@ -317,7 +330,7 @@ var model =
       notas: view.notasedit.value,
       monto: view.montoupdated
     }
-    model.invoke_service(`../rr_plan_mensual/${view.ref_plan.value}/?changemonto=1`, data,
+    model.invoke_service(`../rr_plan/${view.ref_plan.value}/?changemonto=1`, data,
       function (data) {
         if (data != null) {
           window.location.reload();
@@ -336,7 +349,7 @@ var model =
     fdata.append("ref_plan", view.ref_plan.value);
     fdata.append("files", true);
 
-    model.invoke_service("../rr_plan_mensual_pago/", fdata,
+    model.invoke_service("../rr_plan_pago/", fdata,
       function (data) {
         if (data != null) {
           window.location.reload();

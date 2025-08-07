@@ -43,7 +43,7 @@ module "lib.dk"
 	getDataTipoPlan::&db,tipo
 	{
 		new p{@"tipo":tipo}
-		return dbr.rec(db,"select * from rr_tipo_plan_mensual where sys_pk=@tipo",p)
+		return dbr.rec(db,"select * from rr_tipo_plan where sys_pk=@tipo",p)
 	}
 
 	#!
@@ -85,21 +85,16 @@ module "lib.dk"
 	{
 
 		if trim(str(url))==""{return}
-		// do file.wtext("/usr/dkl_apps/web/rr.ws.induxsoft.net/test/aqui.json",to.json(data))
 		new headers{@"Content-Type":"application/json;charset=utf-8"}
 		
 		ref newdata=dataWebHook(event,data)
 
-		// do file.wtext("/usr/dkl_apps/web/rr.ws.induxsoft.net/test/newdata.json",to.json(newdata))
-
 		res =http.request(url,"POST",headers,to.json(newdata))
 		ref result=from.json(res)
-		// do file.wtext("/usr/dkl_apps/web/rr.ws.induxsoft.net/test/result.json",to.json(result))
 		if not(@@(result,"success")){do rise_error(99,@@(result,"$message"))}
 
 		exception
 		{
-			// do file.wtext("/usr/dkl_apps/web/rr.ws.induxsoft.net/test/error.json",last_error())
 		}
 
 		return @@(result,"&data")
@@ -112,7 +107,7 @@ module "lib.dk"
 	@use_transaction=@true
 	@use_transaction_global=@true
 	@sql_ultimo_fechavencimiento="SELECT date_format(DATE_ADD(rr.vencimiento, INTERVAL 1 MONTH),'%Y-%m-%d')ultimo_vencimiento
-		 			FROM rr_plan_mensual_cardex rr INNER JOIN rr_plan_mensual rrp ON rr.ref_plan=rrp.sys_pk where rr.ref_plan=@_plan ORDER BY rr.vencimiento DESC limit 1"
+		 			FROM rr_plan_cardex rr INNER JOIN rr_plan rrp ON rr.ref_plan=rrp.sys_pk where rr.ref_plan=@_plan ORDER BY rr.vencimiento DESC limit 1"
 
 	aplicar_pago::&db,plan,pkpago,fechapago
 	{
@@ -133,11 +128,11 @@ module "lib.dk"
 								 - round(ifnull(rr.pagos,0),4) )
 							 		saldo,
 								 rr.vencimiento<NOW() AS vencido
-							 FROM rr_plan_mensual_cardex rr INNER JOIN rr_plan_mensual rrp ON rr.ref_plan=rrp.sys_pk where ifnull(rr.sys_deleted,0)=0 
+							 FROM rr_plan_cardex rr INNER JOIN rr_plan rrp ON rr.ref_plan=rrp.sys_pk where ifnull(rr.sys_deleted,0)=0 
 							 and rr.ref_plan=@plan  
 							 ORDER BY rr.vencimiento, rr.sys_pk)a WHERE a.saldo>0;"
 
-		resto=dbr.num(db,"SELECT rr.importe FROM rr_plan_mensual_pago rr WHERE rr.sys_pk=@pkpago",param)
+		resto=dbr.num(db,"SELECT rr.importe FROM rr_plan_pago rr WHERE rr.sys_pk=@pkpago",param)
 		
 		ref xsaldar=dbr.list(db,sql,param)
 		new rr_plan_mensual_cardex{}
@@ -185,7 +180,7 @@ module "lib.dk"
 						if field.exist(rr_plan_mensual_cardex,"recargo"){do field.remove(rr_plan_mensual_cardex,"recargo")}
 						descuento=res
 					}
-					do dbr.update(db,"rr_plan_mensual_cardex",rr_plan_mensual_cardex,"sys_pk=@sys_pk",p)
+					do dbr.update(db,"rr_plan_cardex",rr_plan_mensual_cardex,"sys_pk=@sys_pk",p)
 				}
 				saldo=@@(itm,"#saldo") //- descuento + recargo
 
@@ -212,8 +207,8 @@ module "lib.dk"
 					@"pagos":aplicar
 					@"fecha_pago":@@(param,"fecha_pago")//now()
 				}
-				do dbr.execute(db,"UPDATE rr_plan_mensual_cardex SET pagos=ifnull(pagos,0)+@pagos, fecha_pago=@fecha_pago where sys_pk=@sys_pk;",p)
-				do dbr.insert(db,"rr_plan_mensual_cardex_pago",cardex_pago)
+				do dbr.execute(db,"UPDATE rr_plan_cardex SET pagos=ifnull(pagos,0)+@pagos, fecha_pago=@fecha_pago where sys_pk=@sys_pk;",p)
+				do dbr.insert(db,"rr_plan_cardex_pago",cardex_pago)
 
 				if resto<.01{break}
 			}
@@ -223,7 +218,7 @@ module "lib.dk"
 					(ROUND((rr.importe - "+@sql_descuento+" + "+@sql_recargo+"),4)
 								 - round(ifnull(rr.pagos,0),4) ))
 							 		saldo
-					 FROM rr_plan_mensual_cardex rr INNER JOIN rr_plan_mensual rrp ON rr.ref_plan=rrp.sys_pk where ifnull(rr.sys_deleted,0)=0 
+					 FROM rr_plan_cardex rr INNER JOIN rr_plan rrp ON rr.ref_plan=rrp.sys_pk where ifnull(rr.sys_deleted,0)=0 
 					 and rr.ref_plan=@plan  
 					 ORDER BY rr.vencimiento, rr.sys_pk;"
 				saldototal=dbr.num(db,sql_saldo,param)
@@ -240,30 +235,31 @@ module "lib.dk"
 					{
 						@"status":3
 					}
-					isautorenovable=dbr.num(db,"SELECT ifnull(rr.autorenovable,0) FROM rr_plan_mensual rr WHERE rr.sys_pk=@plan",param)
+					isautorenovable=dbr.num(db,"SELECT ifnull(rr.autorenovable,0) FROM rr_plan rr WHERE rr.sys_pk=@plan",param)
 					if isautorenovable
 					{
-						ref data=dbr.rec(db,"SELECT rr.meses,rr.mensualidad,rr.cuota_renovacion,DATE_FORMAT(rr.inicio,'%Y-%m-%d')inicio,DATE_FORMAT(rr.fin,'%Y-%m-%d')fin,rr.monto FROM rr_plan_mensual rr WHERE rr.sys_pk=@plan",param)
+						ref data=dbr.rec(db,"SELECT rr.cantidad_pagos,rr.pago_recurrente,rr.cuota_renovacion,DATE_FORMAT(rr.inicio,'%Y-%m-%d')inicio,DATE_FORMAT(rr.fin,'%Y-%m-%d')fin,rr.monto FROM rr_plan rr WHERE rr.sys_pk=@plan",param)
 						if not(isnull(data))
 						{
 							data<"historial">:@true
 							using param{@"_entity_id":plan}
-							@table_name="rr_plan_mensual"
+							@table_name="rr_plan"
 
 							@read_query="SELECT #<@sys_fields>,rr.ref_tipo,date_format(rr.contratacion,'%Y-%m-%d')contratacion,
-								rr.mensualidad,rr.comision,rr.anticipo,rr.monto,rr.renovable,rr.autorenovable,date_format(rr.inicio,'%Y-%m-%d')inicio,date_format(rr.fin,'%Y-%m-%d')fin,rr.ref_cliente,rr.id_contrato,
-								rr.objeto_contrato,rr.cuota_renovacion,rr.desc_pronto_pago,rr.boni_pronto_pago,rr.meses,rr.cargo_retraso,rr.cuota_retraso,
+								rr.pago_recurrente,rr.comision,rr.anticipo,rr.monto,rr.renovable,rr.autorenovable,date_format(rr.inicio,'%Y-%m-%d')inicio,date_format(rr.fin,'%Y-%m-%d')fin,rr.ref_cliente,rr.id_contrato,
+								rr.objeto_contrato,rr.cuota_renovacion,rr.desc_pronto_pago,rr.boni_pronto_pago,rr.cantidad_pagos,rr.cargo_retraso,rr.cuota_retraso,
 								rr.divisa,rr.txt_clave1,rr.txt_clave2,rr.txt_clave3,rr.txt_clave4,rr.txt_clave5,rr.clave1,rr.clave2,rr.clave3,rr.clave4,rr.clave5,
 								rr.req_clave1,rr.req_clave2,rr.req_clave3,rr.req_clave4,rr.req_clave5,
 								rr.email,rr.email1,rr.telefono,rr.telefono1,rr.`status` ,rr.dias_pronto_pago,rr.dias_pago_tardio
 								FROM #<@table_name> rr where #<@keyfield>=@_entity_id limit 1;"
 								@use_transaction=@false
+								
 							ref d=activarPlan(db,param,data)
 						}
 					}
 					else
 					{
-						do dbr.execute(db,"update rr_plan_mensual set status=@status where sys_pk=@plan",param)	
+						do dbr.execute(db,"update rr_plan set status=@status where sys_pk=@plan",param)	
 					}
 					
 				}
@@ -324,9 +320,7 @@ module "lib.dk"
 					@"fecha_activacion*":now()
 					@"status":1
 				}
-				do dbr.update(db,"rr_plan_mensual",dataplan,"sys_pk=@sys_pk",data)
-
-				meses=@@(data,"#meses")
+				do dbr.update(db,"rr_plan",dataplan,"sys_pk=@sys_pk",data)
 
 				hashanticipo=@@(data,"#anticipo")>0
 				hashcuotaapertura=@@(data,"#comision")>0
@@ -349,7 +343,7 @@ module "lib.dk"
 						@"vencimiento*":str2dt(@@(data,"inicio"))
 						@"importe" :@@(data,"#comision")
 					}
-					do dbr.insert(db,"rr_plan_mensual_cardex",rr_plan_mensual_cardex)
+					do dbr.insert(db,"rr_plan_cardex",rr_plan_mensual_cardex)
 				}
 				else if isrenovacion && hashcuotarenovacion
 				{
@@ -361,7 +355,7 @@ module "lib.dk"
 						@"vencimiento*":str2dt(@@(data,"inicio"))
 						@"importe" :@@(data,"#cuota_renovacion")
 					}
-					do dbr.insert(db,"rr_plan_mensual_cardex",rr_plan_mensual_cardex)
+					do dbr.insert(db,"rr_plan_cardex",rr_plan_mensual_cardex)
 				}
 				if hashanticipo
 				{
@@ -373,31 +367,41 @@ module "lib.dk"
 						@"vencimiento*":str2dt(@@(data,"inicio"))
 						@"importe" :@@(data,"#anticipo")
 					}
-					do dbr.insert(db,"rr_plan_mensual_cardex",rr_plan_mensual_cardex)
+					do dbr.insert(db,"rr_plan_cardex",rr_plan_mensual_cardex)
 				}
 				
-				for i=0;i<meses
-				{
-					vect=@@(data,"inicio")
-					new dt
-					{
-						@"f":vect
-						@"i":i
-					}
-					vencimiento=dbr.str(db,"SELECT ADDDATE(@f,INTERVAL @i month)",dt)
+				if trim(@@(data,"$inicio"))==""{do rise_error(500,"No ha indicado la fecha de inicio del plan")}
+				if @@(data,"#pago_recurrente") < 0.1{do rise_error(500,"No ha definido un pago recurrente")}
+				
+				//preparar datos para obetener los vencimientos de la frecuencia
+				ref fecha=str2dt(@@(data,"$inicio"))
+				year=parse.num(date_str(fecha,"yyyy"))
+				mes=parse.num(date_str(fecha,"MM"))
+				dia=parse.num(date_str(fecha,"dd"))
+				frecuency=dbr.num(db,"select ref_rr_frecuencia from rr_tipo_plan where sys_pk=@ref_tipo",data)
 
-					txt=str(i+1) +" de "+str(meses)
+				//obetener los vencimientos de acuerdo a la frecuencia del plan
+				ref vencimientos=frecuency.vencimientos(year,mes,dia,frecuency,@@(data,"#cantidad_pagos"))
+				if @count(vencimientos) < 1{do rise_error(500,"No se logro obtener el último vencimiento")}
+
+				count_vencimientos=@count(vencimientos)
+				for i=0;i<count_vencimientos
+				{
+					ref fvencimiento=str2dt(list.str(vencimientos,i))
+					vencimiento=date_str(fvencimiento,"yyyy-MM-dd")
+
+					txt=str(i+1) +" de "+str(count_vencimientos)
 					using rr_plan_mensual_cardex
 					{
-						@"importe" :@@(data,"#mensualidad")
+						@"importe" :@@(data,"#pago_recurrente")
 						@"sys_guid":uuid()
 						@"vencimiento":vencimiento
 						@"tipo_movimiento":@rr_clave_mensualidad
 						@"concepto":dbr.str(db,"SELECT const from rr_tipo_movimiento WHERE id="+str(@rr_clave_mensualidad),@null) + " "+txt
 					}
-					do dbr.insert(db,"rr_plan_mensual_cardex",rr_plan_mensual_cardex)
+					do dbr.insert(db,"rr_plan_cardex",rr_plan_mensual_cardex)
 				}
-
+				
 				ismodify=@true
 				evento="activacion"
 			}
@@ -409,7 +413,7 @@ module "lib.dk"
 					@"fecha_cancelacion*":now()
 					@"status":2
 				}
-				do dbr.update(db,"rr_plan_mensual",dataplan,"sys_pk=@sys_pk",data)
+				do dbr.update(db,"rr_plan",dataplan,"sys_pk=@sys_pk",data)
 				ismodify=@true
 				evento="cancelacion"
 			}
@@ -440,16 +444,16 @@ module "lib.dk"
 			@"plan":plan
 			@"_plan":plan
 		}
-		rr_plan_mensual_cardex_pago="SELECT rrp.* FROM rr_plan_mensual_cardex_pago rrp INNER join rr_plan_mensual_cardex rrc ON rrp.ref_cardex=rrc.sys_pk
+		rr_plan_mensual_cardex_pago="SELECT rrp.* FROM rr_plan_cardex_pago rrp INNER join rr_plan_cardex rrc ON rrp.ref_cardex=rrc.sys_pk
 									WHERE rrc.ref_plan=@plan"
 		rr_plan_mensual_cardex="SELECT  rr.*,ROUND((rr.importe - "+@sql_descuento+" + "+@sql_recargo+" ),4)
 			 		importe_total,
 			 (ROUND((rr.importe - "+@sql_descuento+" + "+@sql_recargo+" ),4)
 				 - round(ifnull(rr.pagos,0),4) )
 			 		saldo
-		 FROM rr_plan_mensual_cardex rr INNER JOIN rr_plan_mensual rrp ON rr.ref_plan=rrp.sys_pk where rr.ref_plan=@plan "
+		 FROM rr_plan_cardex rr INNER JOIN rr_plan rrp ON rr.ref_plan=rrp.sys_pk where rr.ref_plan=@plan "
 
-		rr_plan_mensual_pago="SELECT * FROM rr_plan_mensual_pago rr WHERE rr.ref_plan=@plan "
+		rr_plan_mensual_pago="SELECT * FROM rr_plan_pago rr WHERE rr.ref_plan=@plan "
 
 		if @use_transaction{do dbr.begin(db)}
 			ref cardex_pago=dbr.list(db,rr_plan_mensual_cardex_pago,p)
@@ -460,32 +464,32 @@ module "lib.dk"
 			{
 				@"ref_plan":@@(p,"plan")
 				@"fecha*":now()
-				@"mensual_cardex":to.json(mensual_cardex)
-				@"mensual_pago":to.json(mensual_pago)
+				@"cardex":to.json(mensual_cardex)
+				@"pago":to.json(mensual_pago)
 				@"cardex_pago":to.json(cardex_pago)
 			}
-			do dbr.insert(db,"rr_plan_mensual_historial",rr_plan_mensual_historial)
+			do dbr.insert(db,"rr_plan_historial",rr_plan_mensual_historial)
 
 			//vaciar tablas
-			do dbr.execute(db,"delete rrp FROM rr_plan_mensual_cardex_pago rrp INNER join rr_plan_mensual_cardex rrc ON rrp.ref_cardex=rrc.sys_pk
+			do dbr.execute(db,"delete rrp FROM rr_plan_cardex_pago rrp INNER join rr_plan_cardex rrc ON rrp.ref_cardex=rrc.sys_pk
 									WHERE rrc.ref_plan=@plan ",p)
-			do dbr.execute(db,"DELETE rr FROM rr_plan_mensual_pago rr WHERE rr.ref_plan=@plan",p)
-			do dbr.execute(db,"DELETE rr FROM rr_plan_mensual_cardex rr WHERE rr.ref_plan=@plan",p)
+			do dbr.execute(db,"DELETE rr FROM rr_plan_pago rr WHERE rr.ref_plan=@plan",p)
+			do dbr.execute(db,"DELETE rr FROM rr_plan_cardex rr WHERE rr.ref_plan=@plan",p)
 
 			//actualizar plan
-
+			
 			new dataplan
 			{
 				@"fecha_renovacion*":now()
 				@"inicio":@@(data,"inicio")//ifstr(!="",@@(data,"fecha"),dbr.str(db,@sql_ultimo_fechavencimiento,p))
 				@"fin":@@(data,"fin")
-				@"meses":@@(data,"meses")
-				@"cuota_renovacion":@@(data,"cuota_renovacion")
-				@"mensualidad":@@(data,"mensualidad")
-				@"monto":@@(data,"monto")
+				@"cantidad_pagos":@@(data,"#cantidad_pagos")
+				@"cuota_renovacion":@@(data,"#cuota_renovacion")
+				@"pago_recurrente":@@(data,"#pago_recurrente")
+				@"monto":@@(data,"#monto")
 				@"status":1
 			}
-			do dbr.update(db,"rr_plan_mensual",dataplan,"sys_pk=@plan",p)
+			do dbr.update(db,"rr_plan",dataplan,"sys_pk=@plan",p)
 			
 		if @use_transaction{do dbr.commit(db)}
 
@@ -500,13 +504,13 @@ module "lib.dk"
 	{
 		new p{@"plan":@@(params,"_entity_id")}
 
-		do dbr.execute(db,"DELETE rp FROM rr_plan_mensual_cardex_pago rp INNER JOIN rr_plan_mensual_cardex rc ON rp.ref_cardex=rc.sys_pk
+		do dbr.execute(db,"DELETE rp FROM rr_plan_cardex_pago rp INNER JOIN rr_plan_cardex rc ON rp.ref_cardex=rc.sys_pk
 						where rc.ref_plan=@plan",p)
 
-		ref pagos=dbr.list(db,"SELECT rp.sys_pk,DATE_FORMAT(rp.fecha,'%Y-%m-%d')fecha FROM rr_plan_mensual_pago rp INNER JOIN rr_plan_mensual rr ON rp.ref_plan=rr.sys_pk
+		ref pagos=dbr.list(db,"SELECT rp.sys_pk,DATE_FORMAT(rp.fecha,'%Y-%m-%d')fecha FROM rr_plan_pago rp INNER JOIN rr_plan rr ON rp.ref_plan=rr.sys_pk
 				WHERE rr.sys_pk=@plan ORDER BY rp.sys_dtcreated asc",p)
 
-		do dbr.execute(db,"UPDATE  rr_plan_mensual_cardex rc SET rc.fecha_pago=NULL,rc.pagos=0 WHERE rc.ref_plan=@plan",p)
+		do dbr.execute(db,"UPDATE  rr_plan_cardex rc SET rc.fecha_pago=NULL,rc.pagos=0 WHERE rc.ref_plan=@plan",p)
 
 		@use_transaction=@use_transaction_global
 
@@ -567,8 +571,8 @@ module "lib.dk"
 			title=""
 			switch @@(@http_context,"request/get/_entities_type")
 			{
-				case "rr_plan_mensual"{title="Plan mensual"}
-				case "rr_tipo_plan_mensual"{title="Tipo plan"}
+				case "rr_plan"{title="Plan mensual"}
+				case "rr_tipo_plan"{title="Tipo plan"}
 				default{title=@@(@http_context,"request/get/_entities_type")}
 			}
 			new link_rr_plan_entity

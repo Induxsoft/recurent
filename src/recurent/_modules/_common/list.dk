@@ -16,8 +16,8 @@ module "list"
     @_entity_type=""
     switch @@(@http_context,"request/get/_entities_type")
     {
-        case "rr_tipo_plan_mensual"{@_entity_type=ifstr(not(contains(url_current,"rr_tipo_plan_mensual")),"/rr_tipo_plan_mensual/","/")}
-        case "rr_plan_mensual"{@_entity_type=ifstr(not(contains(url_current,@__entities_first)),"/"+@__entities_first+"/","/")}
+        case "rr_tipo_plan"{@_entity_type=ifstr(not(contains(url_current,"rr_tipo_plan")),"/rr_tipo_plan/","/")}
+        case "rr_plan"{@_entity_type=ifstr(not(contains(url_current,@__entities_first)),"/"+@__entities_first+"/","/")}
     }
     
     @text_btn_add="Agregar"
