@@ -614,11 +614,15 @@ module "lib.dk"
 
         ref user_teams = field.dobj(memberships,"teams", @null)
 
-		if not(admin_team == "") && admin_team != "owner" {
+		if not(admin_team == "") && admin_team != "owner" 
+		{
 			for i=0; i<list.count(user_teams)
 			{
 				user_team = list.str(user_teams,i)
-				if admin_team == user_team 
+				new p{@"grupo":user_team}
+				idgrupo=dbr.str(db,"select sys_guid from usergroup where groupid=@grupo",p)
+				
+				if admin_team == user_team  || admin_team == idgrupo
 				{ 
 					@isadmin = @true
 					return @true 
@@ -626,11 +630,15 @@ module "lib.dk"
 			}
 		}
 		
-    	if not(opera_team == "") && opera_team != "all" {
+    	if not(opera_team == "") && opera_team != "all" 
+		{
 			for i=0; i<list.count(user_teams)
 			{
 				user_team = list.str(user_teams,i)
-				if opera_team == user_team 
+				new p{@"grupo":user_team}
+				idgrupo=dbr.str(db,"select sys_guid from usergroup where groupid=@grupo",p)
+				
+				if opera_team == user_team  || opera_team==idgrupo
 				{ 
 					@isoperador = @true
 					return @true 
@@ -643,7 +651,7 @@ module "lib.dk"
 			@isadmin = @true
 			return @true
 		}
-
+		do rise_error(0,@isoperador)
 		if admin_team != "" && opera_team != "" && not(@isadmin) && not(@isoperador)
 		{
 			do rise_error(00,"No tienes permiso para accer a la aplicación, comunicate con el administrador del Workspace")

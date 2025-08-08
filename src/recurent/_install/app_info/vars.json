@@ -13,7 +13,14 @@
                 "vartype": "string",
                 "varinput": 
                 {
-                    "control": "text"
+                    "control": "select",
+                    "source": 
+                    {
+                        "type":"query",
+                        "query":"select sys_guid,u.`description` descripcion from usergroup u",
+                        "keyfield":"sys_guid",
+                        "showfield":"descripcion"
+                    }
                 }
             },
             {
@@ -25,7 +32,14 @@
                 "vartype": "string",
                 "varinput": 
                 {
-                    "control": "text"
+                    "control": "select",
+                    "source": 
+                    {
+                        "type":"query",
+                        "query":"SELECT 'all' sys_guid,'(Todos)' descripcion UNION all select sys_guid,u.`description` from usergroup u",
+                        "keyfield":"sys_guid",
+                        "showfield":"descripcion"
+                    }
                 }
             }
         ]

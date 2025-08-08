@@ -71,45 +71,66 @@ module "config"
 	@RR_TIPO_PLAN = "/!/recurent/rr_tipo_plan/"
 	@RR_SETTINGS = "/!/recurent/setting/"
 
+	// 0,Día
+	// 1,Semanal 
+	// 2,Decenal
+	// 3,Quincenal
+	// 4,Mensual
+	// 5,Bimestral
+	// 6,Trimestral
+	// 7,Cuatrimestral
+	// 8,Semestral
+	// 9,Anual
+	
 	new @rr_objeto_frecuencia
 	{
+		member @"0" //semanal
+		{
+			@"text":"Día(s)"
+			@"dias": 1
+		}
 		member @"1" //semanal
 		{
 			@"text":"Semana(s)"
 			@"dias": 7
 		}
-		member @"2"//quicenal
+		member @"2" //Decenal
+		{
+			@"text":"Decenal"
+			@"dias": 10
+		}
+		member @"3"//quicenal
 		{
 			@"text":"Quincena(s)"
 			@"dias": 15
 		}
-		member @"3"//mensual
+		member @"4"//mensual
 		{
 			@"text":"Meses"
 			@"text1":"Mes"
 			@"dias":"*"
 		}
-		member @"4"//Bimestral
+		member @"5"//Bimestral
 		{
 			@"text":"(2 meses)"
 			@"dias":"*"
 		}
-		member @"5"//Trimestral
+		member @"6"//Trimestral
 		{
 			@"text":"(3 meses)"
 			@"dias":"*"
 		}
-		member @"6"//Cuatrimestral
+		member @"7"//Cuatrimestral
 		{
 			@"text":"(4 meses)"
 			@"dias":"*"
 		}
-		member @"7"//Semestral
+		member @"8"//Semestral
 		{
 			@"text":"(6 meses)"
 			@"dias":"*"
 		}
-		member @"8"//Anual
+		member @"9"//Anual
 		{
 			@"text":"(1 año)"
 			@"dias":"*"
