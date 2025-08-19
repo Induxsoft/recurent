@@ -455,6 +455,9 @@ module "lib.dk"
 
 		rr_plan_mensual_pago="SELECT * FROM rr_plan_pago rr WHERE rr.ref_plan=@plan "
 
+		if @@(data,"#mensualidad") > 0 && @@(data,"#pago_recurrente")==0{data<"pago_recurrente">:@@(data,"#mensualidad")}
+		if @@(data,"#meses") > 0 && @@(data,"#cantidad_pagos")==0{data<"cantidad_pagos">:@@(data,"#meses")}
+		
 		if @use_transaction{do dbr.begin(db)}
 			ref cardex_pago=dbr.list(db,rr_plan_mensual_cardex_pago,p)
 			ref mensual_cardex=dbr.list(db,rr_plan_mensual_cardex,p)
