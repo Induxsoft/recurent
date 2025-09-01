@@ -291,6 +291,8 @@ module "rr_plan.dk"
 
 	rr.list::&db,&params
 	{
+		if not(field.exist(params,"fil_status")){params<"fil_status">: 1 }
+
 		if field.exist(params,"text_filter") || @@(params,"#fil_status") > 0 || @@(params,"#fil_tipo") > 0
 		{
 			@list_query = @list_query + "
@@ -323,7 +325,6 @@ module "rr_plan.dk"
 						SELECT * FROM("+@sql_vigentes_sin_vencidos+")c"
 		}
 
-		// do file.wtext("recurent/_modules/rr_plan/l.sql",ftext(@list_query))
 		new entity
 		{
 			@"status*":dbr.list(db,"select id,const from status_plan",@null)
