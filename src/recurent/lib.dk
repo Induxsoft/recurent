@@ -298,7 +298,6 @@ module "lib.dk"
 	}
 	plan_action::&db,&params
 	{
-
 		ref data=entity.read(db,params)
 		if parse.bool(@@(params,"onlydata")){return data}
 
@@ -320,7 +319,6 @@ module "lib.dk"
 					@"fecha_activacion*":now()
 					@"status":1
 				}
-				do dbr.update(db,"rr_plan",dataplan,"sys_pk=@sys_pk",data)
 
 				hashanticipo=@@(data,"#anticipo")>0
 				hashcuotaapertura=@@(data,"#comision")>0
@@ -401,6 +399,10 @@ module "lib.dk"
 					}
 					do dbr.insert(db,"rr_plan_cardex",rr_plan_mensual_cardex)
 				}
+
+				last_vencimiento=date_str(str2dt(list.str(vencimientos,@count(vencimientos)-1)),"yyyy-MM-dd")
+				if trim(last_vencimiento)!=""{dataplan<"fin">:last_vencimiento}
+				do dbr.update(db,"rr_plan",dataplan,"sys_pk=@sys_pk",data)
 				
 				ismodify=@true
 				evento="activacion"
