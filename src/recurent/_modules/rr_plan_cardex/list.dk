@@ -444,6 +444,14 @@ module "lst"
 				{
 					#$
 					button(class="btn btn-primary btn-sm m-1" onclick="view.showModal('#modalrenovacion')"){"Renovar plan"}
+					#!
+				}
+
+				if @status_plan > 1 && @vw==""
+				{
+					#$
+					a(class="btn btn-light btn-sm m-1" href="./?_plan=#<@('./plan/sys_pk')>&_cardex=1&vw=pagos"){"Historial de pagos"}
+					#!
 				}
 				
 				#!

@@ -112,7 +112,7 @@ module "list"
         }
         ##
         div(class="container-fluid")
-        {
+        {$""
             #!
             if @show_btn_add
             {
@@ -123,7 +123,7 @@ module "list"
             if @show_style_min_max_h_w{style="min-height:80vh;max-height:80vh;"+@styles }
             #$
             div(style="overflow-y:auto;#<style>")
-            {
+            {$""
                      ##
                     do uie.dbtable(@table_definition)
                     if @count(@@(@table_definition,"&datatable"))<=0 && @show_msj_data

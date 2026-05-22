@@ -70,11 +70,41 @@ module "rr_plan_cardex.dk"
 			using cardex
 			{
 				@"plan*":plan
-				@"pagos*":dbr.list(db,"SELECT rr.sys_pk,rr.sys_guid,rr.sys_dtcreated,rr.sys_timestamp,rr.formapago claveformapago,rr.importe,rr.divisa,
-							DATE_FORMAT(rr.fecha,'%Y-%m-%d')fecha,rr.usuario,DATE_FORMAT(rr.fecha_factura,'%Y-%m-%d')fecha_factura,
-							rr.id_factura,rr.referencia,rr.notas,rr.ref_plan,
-							ifnull((SELECT rf.valor FROM rr_formapago rf WHERE rf.clave=rr.formapago LIMIT 1),rr.formapago) formapago
-							FROM rr_plan_pago rr WHERE rr.ref_plan=@_plan ORDER BY rr.sys_dtcreated desc",params)
+				@"pagos*":dbr.list(db,"SELECT
+								rr.sys_pk,
+								rr.sys_guid,
+								rr.sys_dtcreated,
+								rr.sys_timestamp,
+								rr.formapago claveformapago,
+								rr.importe,
+								rr.divisa,
+								DATE_FORMAT(rr.fecha, '%Y-%m-%d') fecha,
+								rr.usuario,
+								DATE_FORMAT(rr.fecha_factura, '%Y-%m-%d') fecha_factura,
+								rr.id_factura,
+								rr.referencia,
+								CONCAT_WS(' - ',rr.notas,rc.concepto)notas,
+								rr.ref_plan,
+								ifnull(
+									(
+										SELECT
+											rf.valor
+										FROM
+											rr_formapago rf
+										WHERE
+											rf.clave = rr.formapago
+										LIMIT
+											1
+									), rr.formapago
+								) formapago
+							FROM
+								rr_plan_pago rr
+								LEFT JOIN rr_plan_cardex_pago rcp ON rr.sys_pk = rcp.ref_pago
+								LEFT JOIN rr_plan_cardex rc ON rcp.ref_cardex = rc.sys_pk
+							WHERE
+								rr.ref_plan = @_plan
+							ORDER BY
+								rr.sys_dtcreated desc",params)
 
 				@"history_pagos*":historial.cardex(db,params)
 			}

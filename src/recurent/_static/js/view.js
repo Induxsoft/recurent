@@ -543,11 +543,17 @@ var view=
 		///***********************************************************
 		if(view.finicio_renovacion && view.ffin_renovacion)
 		{
-			view._calFechaFin_(view.meses_renovacion.value,view.finicio_renovacion,view.ffin_renovacion)
+			view._calFechaFin_(view.meses_renovacion.value,view.finicio_renovacion,view.ffin_renovacion);
 		}
+		
 		if(view.meses_renovacion)view.meses_renovacion.addEventListener("keyup",function(){
 			op.cal_monto();
 		});
+		if(view.meses_renovacion)view.meses_renovacion.addEventListener("keyup",()=>
+		{
+			view._calFechaFin_(view.meses_renovacion.value,view.finicio_renovacion,view.ffin_renovacion);
+		});
+
 		if(view.mensualidad_renovacion)view.mensualidad_renovacion.addEventListener("keyup",function(){
 			op.cal_monto();
 		});
