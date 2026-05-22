@@ -66,11 +66,10 @@ module "lst"
     status=dbr.str(@("&database"),"select const from status_plan where id=@status limit 1",s)
     if status==""{status="Borrador"}
 
-    @vw=@("parameters/vw")
-
-	@meses=@("$./plan/meses")
+    @vw=@("$parameters/vw")
+	@meses=@("#./plan/cantidad_pagos")
 	@fultimovencimiento=@("./ultimo_vencimiento")
-	@mensualidad=@("#./plan/mensualidad")
+	@mensualidad=@("#./plan/pago_recurrente")
 	@anticipo=@("#./plan/anticipo")
 	@monto=@("#./plan/monto")
 	@couta_renovacion=@("#./plan/cuota_renovacion")
@@ -91,7 +90,7 @@ module "lst"
 	// do rise_error(99,@count(@("&./vencidos")))
 	ref @listall_conceptos=listall
 
-	@sys_guidplan=@('./plan/sys_guid')
+	@sys_guidplan=@('$./plan/sys_guid')
 	@path_plan=path.concat(@path_files,@sys_guidplan)
 
 	do check_permissions_administrative(@("&database"))
@@ -440,7 +439,8 @@ module "lst"
 						a(class="" href="#" onclick="model.restablecerPagos(#<@('./plan/sys_pk')>)"){"Reconstruir"}	
 					}
 					#!
-				}else if @status_plan==3 && @isrenovable && @isadmin
+				}
+				else if @status_plan==3 && @isrenovable && @isadmin
 				{
 					#$
 					button(class="btn btn-primary btn-sm m-1" onclick="view.showModal('#modalrenovacion')"){"Renovar plan"}
@@ -549,6 +549,8 @@ module "lst"
 						do tableGlobalDefinition()
 						
 						using @table_definition{@"datatable*":@("&./vigentes")}
+
+						do tableGlobalDefinition()
 						#!
 					}
 					else
@@ -556,7 +558,16 @@ module "lst"
 						
 						cell_link_func::&params, &row, &cell
 						{
+							if @@(cell,"cell_type")=="summary"
+							{
+								new attr
+								{
+									@"style":"color:black;text-align:right;font-weight: bold;"
+								}
+								cell<"attributes*">:attr
+							}
 							if @@(cell,"cell_type")!="data" &&  @@(cell,"cell_type")!="unknow" { return }
+							
 							if @@(cell,"column")=="comprobante"
 							{
 								path=path.concat(@path_plan,@@(row,"$sys_guid"))
@@ -567,7 +578,7 @@ module "lst"
 						{
 							@"datatable*":@("&./pagos")
 	            			@"value_field":"sys_pk"
-
+							@"class":"table"
 	            			member @"columns"
 	            			{
 	            				member @"formapago"
@@ -591,6 +602,10 @@ module "lst"
 	            				member @"divisa"
 	            				{
 	            					@"caption":"Divisa"
+									member @"attributes"
+	            					{
+	            						@"style":"text-align:center"
+	            					}
 	            				}
 	            				member @"usuario"
 	            				{
@@ -604,14 +619,45 @@ module "lst"
 	            				{
 	            					@"caption":"Notas"
 	            				}
+								member @"id_factura"
+								{
+									@"caption":"Id factura"
+								}
 	            				member @"comprobante"
 	            				{
 	            					@"caption":"Comprobante"
 	            				}
 	            			}
 						}
+
+						cardex_current=@count(@("&./pagos")) > 0
+						#$
+						div
+						{
+							h5(class="#<ifstr(cardex_current,'','d-none')>"){"Cardex actual"}
+							#!
+							do tableGlobalDefinition()
+						}
+						
+						#!
+						ref history_pagos=@("&./history_pagos")
+						ref r=list.create_from_fields(ifnull(history_pagos,record.create()))
+						for i = 0; i < @count(r)
+						{
+							k=list.str(r,i)
+							using @table_definition{@"datatable*":@@(history_pagos,"&"+k)}
+							#$
+							div
+							{
+								h5{"Cardex: #<k>"}
+								#!
+								do tableGlobalDefinition()
+								#!
+							}
+							
+						}
+						
 					}
-					do tableGlobalDefinition()
 					
 				}
 			}

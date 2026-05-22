@@ -9,6 +9,26 @@ module "lib.dk"
 	#include "config.dk"
 
 	#include "ws.api.dkl"
+
+	parse.json::json,defjson
+	{
+		return from.json(json)
+
+		exception
+		{
+			return from.json(defjson)
+		}
+	}
+	get.row::&l,field,value
+	{
+		for i = 0; i < @count(l)
+		{
+			ref r=@item(l,i)
+			if @@(r,field) == value{return r}
+		}
+
+		return @null
+	}
 	#!
 	api_base_service::
     {
@@ -106,8 +126,9 @@ module "lib.dk"
 	@sql_recargo="ifnull(if(NOW()>date_add(date("+@vencimiento_days_pagotardio+"),INTERVAL if(date(NOW())=date(rr.vencimiento),1,0) day) , if(ifnull(rr.pagos,0)=0 and (iFNULL(rr.recargo,0)=0 and IFNULL(rr.descuento,0)=0) and rr.tipo_movimiento=3, (rr.importe * (1+rrp.cargo_retraso/100)-rr.importe)+rrp.cuota_retraso,rr.recargo) ,0),0)"
 	@use_transaction=@true
 	@use_transaction_global=@true
-	@sql_ultimo_fechavencimiento="SELECT date_format(DATE_ADD(rr.vencimiento, INTERVAL 1 MONTH),'%Y-%m-%d')ultimo_vencimiento
-		 			FROM rr_plan_cardex rr INNER JOIN rr_plan rrp ON rr.ref_plan=rrp.sys_pk where rr.ref_plan=@_plan ORDER BY rr.vencimiento DESC limit 1"
+	@sql_ultimo_fechavencimiento="SELECT date_format(DATE_ADD(IFNULL(rr.vencimiento,rrp.fin), INTERVAL 1 MONTH),'%Y-%m-%d')ultimo_vencimiento
+		 			FROM rr_plan rrp 
+					LEFT join rr_plan_cardex rr ON rrp.sys_pk=rr.ref_plan where rrp.sys_pk=@_plan ORDER BY rr.vencimiento DESC LIMIT 1;"
 
 	aplicar_pago::&db,plan,pkpago,fechapago
 	{
@@ -338,7 +359,7 @@ module "lib.dk"
 						@"tipo_movimiento":@rr_clave_cuota_apertura
 						@"concepto":dbr.str(db,"SELECT const from rr_tipo_movimiento WHERE id="+str(@rr_clave_cuota_apertura),@null)
 						@"sys_guid":uuid()
-						@"vencimiento*":str2dt(@@(data,"inicio"))
+						@"vencimiento*":str2dt(@@(data,"$inicio"))
 						@"importe" :@@(data,"#comision")
 					}
 					do dbr.insert(db,"rr_plan_cardex",rr_plan_mensual_cardex)
@@ -350,7 +371,7 @@ module "lib.dk"
 						@"tipo_movimiento":@rr_clave_cuota_renovacion
 						@"concepto":dbr.str(db,"SELECT const from rr_tipo_movimiento WHERE id="+str(@rr_clave_cuota_renovacion),@null)
 						@"sys_guid":uuid()
-						@"vencimiento*":str2dt(@@(data,"inicio"))
+						@"vencimiento*":str2dt(@@(data,"$inicio"))
 						@"importe" :@@(data,"#cuota_renovacion")
 					}
 					do dbr.insert(db,"rr_plan_cardex",rr_plan_mensual_cardex)
@@ -362,7 +383,7 @@ module "lib.dk"
 						@"tipo_movimiento":@rr_clave_anticipo
 						@"concepto":dbr.str(db,"SELECT const from rr_tipo_movimiento WHERE id="+str(@rr_clave_anticipo),@null)
 						@"sys_guid":uuid()
-						@"vencimiento*":str2dt(@@(data,"inicio"))
+						@"vencimiento*":str2dt(@@(data,"$inicio"))
 						@"importe" :@@(data,"#anticipo")
 					}
 					do dbr.insert(db,"rr_plan_cardex",rr_plan_mensual_cardex)
@@ -381,7 +402,7 @@ module "lib.dk"
 				//obetener los vencimientos de acuerdo a la frecuencia del plan
 				ref vencimientos=frecuency.vencimientos(year,mes,dia,frecuency,@@(data,"#cantidad_pagos"))
 				if @count(vencimientos) < 1{do rise_error(500,"No se logro obtener el último vencimiento")}
-
+				
 				count_vencimientos=@count(vencimientos)
 				for i=0;i<count_vencimientos
 				{

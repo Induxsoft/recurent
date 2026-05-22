@@ -75,8 +75,8 @@ module "rr_plan_cardex.dk"
 							rr.id_factura,rr.referencia,rr.notas,rr.ref_plan,
 							ifnull((SELECT rf.valor FROM rr_formapago rf WHERE rf.clave=rr.formapago LIMIT 1),rr.formapago) formapago
 							FROM rr_plan_pago rr WHERE rr.ref_plan=@_plan ORDER BY rr.sys_dtcreated desc",params)
-				
-				
+
+				@"history_pagos*":historial.cardex(db,params)
 			}
 		}
 		else
@@ -92,7 +92,68 @@ module "rr_plan_cardex.dk"
 
 		return cardex
 	}
+	historial.cardex::&db,&params
+	{
+		ref l=record.create()
+		ref history_cardex=dbr.list(db,"SELECT *,TRIM(date(fecha))_created FROM rr_plan_historial r WHERE r.ref_plan=@_plan ORDER BY sys_pk DESC;",params)
+		for i = 0; i < @count(history_cardex)
+		{
+			ref hc=@item(history_cardex,i)
+			_created=@@(hc,"$_created")
+			ref cardexs=parse.json(@@(hc,"$cardex"),"[]")
+			ref pagos=parse.json(@@(hc,"$pago"),"[]")
+			ref cardex_pagos=parse.json(@@(hc,"$cardex_pago"),"[]")
 
+			if @count(cardexs) > 0
+			{
+				l<_created+"*">:list.create()
+			}
+			for j = 0; j < @count(cardexs)
+			{
+				ref c=@item(cardexs,j)
+				
+				ref cp=get.row(cardex_pagos,"#ref_cardex",@@(c,"#sys_pk"))
+
+				if isnull(cp)
+				{
+					new p
+					{
+						@"sys_pk": 0
+						@"claveformapago":"NA"
+						@"importe":@@(c,"#importe")
+						@"divisa":"MXN"
+						@"fecha":"NA"
+						@"usuario":""
+						@"fecha_factura":""
+						@"id_factura":""
+						@"referencia":""
+						@"notas":@@(c,"$concepto") +" <small class='text-danger'>[Pendiente] </small>"
+						@"formapago":"NA"
+						@"comprobante":""
+					}
+				}
+				else
+				{
+					ref p=get.row(pagos,"#sys_pk",@@(cp,"#ref_pago")) 
+					p<"claveformapago">:@@(p,"$formapago")
+
+					ref ffecha= dbr.rec(db,"SELECT rf.valor,DATE_FORMAT(@fecha, '%Y-%m-%d') fecha,
+					DATE_FORMAT(@fecha_factura, '%Y-%m-%d') fecha_factura FROM rr_formapago rf WHERE rf.clave=@claveformapago LIMIT 1",p)
+					p<"formapago">:@@(ffecha,"$valor")
+					p<"fecha">:@@(ffecha,"$fecha")
+					p<"fecha_factura">:@@(ffecha,"$fecha_factura")
+					p<"comprobante">:""
+					p<"usuario">:dbr.str(db,"SELECT username from tuser where sys_guid=@usuario",p)
+					p<"notas">:@@(p,"$notas") + " - "+@@(c,"$concepto")
+
+				}
+
+				do list.add(@@(l,"&"+_created),p)
+			}
+		}
+
+		return l
+	}
 	rr.cardex.invoke_webhook::&db,plan,&data
 	{
 		new p{@"plan":plan}

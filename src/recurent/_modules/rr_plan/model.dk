@@ -297,23 +297,17 @@ module "rr_plan.dk"
 		{
 			@list_query = @list_query + "
 			where not ifnull(rr.sys_deleted,0)
-				and if(ifnull(@text_filter,'')='',true,(rr.id_contrato like '%@{text_filter}%'
-					or c.nombre like '%@{text_filter}%'
-					or rrt.nombre like '%@{text_filter}%'
-					or rr.cantidad_pagos like '%@{text_filter}%'
-					or rr.pago_recurrente like '%@{text_filter}%'
-					or c.codigo like '%@{text_filter}%'
-					or c.rfc like '%@{text_filter}%'
-					or rr.clave1 like '%@{text_filter}%'
-					or rr.clave2 like '%@{text_filter}%'
-					or rr.clave3 like '%@{text_filter}%'
-					or rr.clave4 like '%@{text_filter}%'
-					or rr.clave5 like '%@{text_filter}%') )
-				and if(ifnull(@fil_status,-1)=-1,true,ifnull(rr.status,0)=@fil_status)
-				and if(ifnull(@fil_tipo,-1)=-1,true,rr.ref_tipo=@fil_tipo)
+			and 
+			(
+				ifnull(@text_filter,'')='' 
+				or 
+				concat_ws(' ',rr.id_contrato,c.nombre,c.codigo,rrt.nombre,rr.cantidad_pagos,rr.pago_recurrente,c.codigo,c.rfc,rr.clave1,rr.clave2,rr.clave3,rr.clave4,rr.clave5) like concat('%',@text_filter,'%')
+			)
+			and if(ifnull(@fil_status,-1)=-1,true,ifnull(rr.status,0)=@fil_status)
+			and if(ifnull(@fil_tipo,-1)=-1,true,rr.ref_tipo=@fil_tipo)
 			order by
-				rr.status,
-				rr.sys_dtcreated DESC
+			rr.status,
+			rr.sys_dtcreated DESC
 			"
 		}
 		else
