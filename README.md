@@ -1,4 +1,4 @@
-# Recurent.
+# Recurent(Cobros recurrentes).
 El paquete Recurent (Cobros recurrentes) de V12 es el módulo especializado en la administración de planes de pago, contratos y gestión de cobranza periódica, diseñado para empresas que manejan servicios o productos con pagos continuos, suscripciones o cuotas. Su objetivo es automatizar y controlar los procesos de facturación y cobro, asegurando eficiencia y trazabilidad.
 
 ## Manual del usuario
